@@ -922,208 +922,270 @@ FORMATS = {
     "9:16 Reel (1080x1920)": (1080, 1920),
 }
 
-def get_brand_css(w=1080, h=1080):
-    is_reel = h > w
-    pad_quote = "180px 100px" if is_reel else "100px"
-    pad_slide = "140px 80px" if is_reel else "80px"
-    pad_reflect = "180px 100px" if is_reel else "100px"
+
+def get_brand_css(w, h, is_reel=False, emotion="default"):
+    pad_quote = "140px 70px" if is_reel else "80px"
+    pad_slide = "120px 70px 180px 70px" if is_reel else "60px 50px 100px 50px"
+    pad_reflect = "120px 70px" if is_reel else "70px"
     pad_list = "120px 70px" if is_reel else "70px"
     pad_cover = "140px 70px" if is_reel else "80px 70px"
-    orn_mb = "48px" if is_reel else "32px"
     qs_mt = "42px" if is_reel else "28px"
     corner_size = "100px" if is_reel else "80px"
     corner_inset = "44px" if is_reel else "32px"
     reflect_title_size = "38px" if is_reel else "32px"
 
+    # Phase 2: Emotion Mapping Lookup Table
+    emotion_lower = str(emotion).lower()
+    if "rage" in emotion_lower or "defiance" in emotion_lower:
+        palette = {"gold": "#C9922A", "gold2": "#7A3B10", "gold3": "#4A1805", "cream": "#F2E8D0", "black": "#120502", "deep": "#180A04"}
+    elif "stillness" in emotion_lower or "duty" in emotion_lower:
+        palette = {"gold": "#A09A8F", "gold2": "#6D6860", "gold3": "#3A3630", "cream": "#D0CCC4", "black": "#04060A", "deep": "#080A10"}
+    elif "sacrifice" in emotion_lower or "betrayal" in emotion_lower:
+        palette = {"gold": "#D4AF37", "gold2": "#B59410", "gold3": "#8B7500", "cream": "#FFF8DC", "black": "#000000", "deep": "#000000"}
+    else:
+        palette = {"gold": "#C9922A", "gold2": "#E8B84B", "gold3": "#F5D78E", "cream": "#F2E8D0", "black": "#0A0804", "deep": "#110E07"}
+
     return f"""
 @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
-:root {{ --gold: #C9922A; --gold2: #E8B84B; --gold3: #F5D78E; --cream: #F2E8D0; --black: #0A0804; --deep: #110E07; --smoke: #2A2318; --ember: #7A3B10; --text: #EDE0C4; }}
+:root {{
+    --gold: {palette['gold']}; --gold2: {palette['gold2']}; --gold3: {palette['gold3']};
+    --cream: {palette['cream']}; --black: {palette['black']}; --deep: {palette['deep']};
+    --text: #EDE0C4;
+    
+    --pad-quote: {pad_quote};
+    --pad-slide: {pad_slide};
+    --pad-reflect: {pad_reflect};
+    --pad-list: {pad_list};
+    --pad-cover: {pad_cover};
+    
+    --corner-size: {corner_size};
+    --corner-inset: {corner_inset};
+    --title-size: {reflect_title_size};
+}}
 *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: hidden; margin: 0; width: {w}px; height: {h}px; }}
 .card {{ width: {w}px; height: {h}px; position: relative; overflow: hidden; }}
-.battle-bg {{ position: absolute; inset: 0; pointer-events: none; background-size: cover; background-position: center; filter: brightness(0.4) contrast(1.1); }}
 
-.card-quote {{ background: var(--black); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: {pad_quote}; text-align: center; }}
-.card-quote::before {{ content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, rgba(122,59,16,0.2) 0%, transparent 70%); }}
-.cq-corner {{ position: absolute; width: {corner_size}; height: {corner_size}; }}
-.cq-corner.tl {{ top: {corner_inset}; left: {corner_inset}; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); }}
-.cq-corner.tr {{ top: {corner_inset}; right: {corner_inset}; border-top: 1px solid var(--gold); border-right: 1px solid var(--gold); }}
-.cq-corner.bl {{ bottom: {corner_inset}; left: {corner_inset}; border-bottom: 1px solid var(--gold); border-left: 1px solid var(--gold); }}
-.cq-corner.br {{ bottom: {corner_inset}; right: {corner_inset}; border-bottom: 1px solid var(--gold); border-right: 1px solid var(--gold); }}
-.card-quote .orn {{ color: var(--gold); font-size: 72px; line-height: 1; margin-bottom: {orn_mb}; opacity: .35; position: relative; z-index: 2; }}
-.card-quote .qt {{ font-family: 'Cinzel', serif; font-size: 28px; font-weight: 600; color: var(--cream); line-height: 1.75; letter-spacing: .5px; position: relative; z-index: 2; text-transform: uppercase; }}
-.card-quote .qs {{ margin-top: {qs_mt}; font-family: 'EB Garamond', serif; font-size: 22px; font-style: italic; color: var(--gold); opacity: .65; position: relative; z-index: 2; }}
-.card-quote .sanskrit {{ margin-top: 28px; font-family: 'EB Garamond', serif; font-size: 28px; font-style: italic; color: rgba(201,146,42,0.55); position: relative; z-index: 2; letter-spacing: .5px; line-height: 1.6; }}
-.card-quote .btag {{ position: absolute; bottom: 36px; font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,146,42,0.3); z-index: 2; }}
+/* Phase 2: Duotone Backgrounds & Vignette */
+.battle-bg {{ position: absolute; inset: 0; pointer-events: none; background-size: cover; background-position: center; mix-blend-mode: overlay; opacity: 0.8; filter: url(#duotone); }}
+.vignette-overlay {{ position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, transparent 30%, var(--black) 100%); z-index: 1; }}
 
-.card-slide {{ background: var(--deep); display: flex; flex-direction: column; justify-content: space-between; padding: {pad_slide}; }}
-.card-slide .gline {{ position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(to bottom, transparent, var(--gold), transparent); }}
-.card-slide .snum {{ position: absolute; right: 50px; top: 30px; font-family: 'Cinzel Decorative', serif; font-size: 140px; font-weight: 900; color: rgba(201,146,42,0.06); line-height: 1; pointer-events: none; }}
-.card-slide .stag {{ font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 6px; text-transform: uppercase; color: var(--gold); opacity: .65; position: relative; z-index: 2; }}
-.card-slide .stitle {{ font-family: 'Cinzel', serif; font-size: 36px; font-weight: 700; color: var(--cream); line-height: 1.35; margin-top: 24px; max-width: 88%; position: relative; z-index: 2; text-transform: uppercase; }}
-.card-slide .sbody {{ font-family: 'EB Garamond', serif; font-size: 24px; line-height: 1.8; color: rgba(242,232,208,0.78); margin-top: 24px; position: relative; z-index: 2; }}
-.card-slide .sdiv {{ width: 60px; height: 1px; background: var(--gold); margin-top: 36px; opacity: .4; position: relative; z-index: 2; }}
-.card-slide .sfooter {{ display: flex; justify-content: space-between; align-items: center; margin-top: 40px; position: relative; z-index: 2; }}
-.card-slide .sfooter .brand {{ font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,146,42,.35); }}
-.card-slide .dots {{ display: flex; gap: 8px; }}
-.card-slide .dot {{ width: 8px; height: 8px; border-radius: 50%; background: rgba(201,146,42,.18); }}
-.card-slide .dot.on {{ background: var(--gold); }}
+/* Phase 1 & 3: Componentized HTML */
+.cq-corner {{ position: absolute; width: var(--corner-size); height: var(--corner-size); z-index: 2; }}
+.cq-corner.tl {{ top: var(--corner-inset); left: var(--corner-inset); border-top: 2px solid var(--gold); border-left: 2px solid var(--gold); }}
+.cq-corner.tr {{ top: var(--corner-inset); right: var(--corner-inset); border-top: 2px solid var(--gold); border-right: 2px solid var(--gold); }}
+.cq-corner.bl {{ bottom: var(--corner-inset); left: var(--corner-inset); border-bottom: 2px solid var(--gold); border-left: 2px solid var(--gold); }}
+.cq-corner.br {{ bottom: var(--corner-inset); right: var(--corner-inset); border-bottom: 2px solid var(--gold); border-right: 2px solid var(--gold); }}
 
-.card-reflection {{ background: var(--black); display: flex; flex-direction: column; justify-content: center; padding: {pad_reflect}; text-align: left; }}
-.card-reflection .rtag {{ font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 6px; text-transform: uppercase; color: var(--gold); opacity: .58; margin-bottom: 28px; position: relative; z-index: 2; }}
-.card-reflection .rtitle {{ font-family: 'Cinzel Decorative', serif; font-size: {reflect_title_size}; font-weight: 900; background: linear-gradient(135deg, var(--gold3) 0%, var(--gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.1; position: relative; z-index: 2; margin-bottom: 28px; }}
-.card-reflection .rdash {{ width: 50px; height: 1px; background: var(--gold); opacity: .38; margin-bottom: 28px; position: relative; z-index: 2; }}
-.card-reflection .rbody {{ font-family: 'EB Garamond', serif; font-size: 28px; line-height: 1.6; color: var(--text); font-weight: 500; position: relative; z-index: 2; }}
-.card-reflection .rbrand {{ position: absolute; bottom: 36px; font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,146,42,0.28); z-index: 2; }}
+.brand {{ font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 5px; text-transform: uppercase; color: var(--gold); opacity: 0.6; z-index: 3; position: relative; }}
+.brand-footer {{ position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: 100%; text-align: center; }}
 
-.card-list {{ background: var(--deep); display: flex; flex-direction: column; justify-content: space-between; padding: {pad_list}; }}
-.card-list .gline {{ position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: linear-gradient(to bottom, transparent, var(--gold), transparent); }}
-.card-list .ltag {{ font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 6px; text-transform: uppercase; color: var(--gold); opacity: .58; margin-bottom: 16px; }}
-.card-list .ltitle {{ font-family: 'Cinzel', serif; font-size: 34px; font-weight: 700; color: var(--cream); line-height: 1.3; margin-bottom: 36px; }}
-.card-list .litem {{ display: flex; gap: 22px; align-items: flex-start; margin-bottom: 20px; }}
-.card-list .lnum {{ font-family: 'Cinzel Decorative', serif; font-size: 28px; color: var(--gold); opacity: 0.9; line-height: 1.1; min-width: 35px; position: relative; z-index: 2; }}
-.card-list .ltxt {{ font-family: 'EB Garamond', serif; font-size: 24px; color: var(--text); font-weight: 500; line-height: 1.6; position: relative; z-index: 2; }}
-.card-list .lbrand {{ margin-top: 30px; font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,146,42,.28); }}
+/* SVG Divider (Phase 3) */
+.svg-divider {{ margin: 24px 0; opacity: 0.8; z-index: 2; position: relative; text-align: center; }}
 
-.card-cover {{ background: var(--black); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: {pad_cover}; }}
-.card-cover .rings {{ position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }}
-.card-cover .series-label {{ font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 7px; text-transform: uppercase; color: var(--gold); opacity: .65; position: relative; z-index: 2; border: 1px solid rgba(201,146,42,.28); padding: 8px 22px; }}
-.card-cover .cnum {{ font-family: 'Cinzel Decorative', serif; font-size: 160px; font-weight: 900; background: linear-gradient(180deg, var(--gold3) 0%, rgba(201,146,42,.18) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; margin: 16px 0; position: relative; z-index: 2; }}
-.card-cover .ctitle {{ font-family: 'Cinzel', serif; font-size: 34px; font-weight: 700; color: var(--cream); letter-spacing: 3px; line-height: 1.4; position: relative; z-index: 2; }}
-.card-cover .csub {{ margin-top: 22px; font-family: 'EB Garamond', serif; font-size: 22px; font-style: italic; color: rgba(242,232,208,.38); position: relative; z-index: 2; }}
-.card-cover .cbrand {{ position: absolute; bottom: 32px; font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 5px; text-transform: uppercase; color: rgba(201,146,42,.28); }}
-
-/* KINETIC TYPOGRAPHY ANIMATION */
-.word {{ display: inline-block; transition: all 0.05s ease-in-out; }}
-.word.highlight {{ 
-    color: var(--gold2); 
-    text-shadow: 0 0 15px rgba(232,184,75,0.8); 
-    transform: scale(1.15); 
+/* Typography Baseline (Phase 3) */
+.qt, .stitle, .rtitle, .ltitle, .ctitle {{
+    font-family: 'Cinzel Decorative', serif; 
+    font-weight: 700;
+    color: var(--cream);
+    text-transform: uppercase;
+    position: relative;
+    z-index: 2;
 }}
-</style>
-<script>
-    function setHighlight(idx) {{
-        document.querySelectorAll('.word').forEach(e => e.classList.remove('highlight'));
-        if (idx >= 0) {{
-            let el = document.getElementById('word-' + idx);
-            if(el) el.classList.add('highlight');
-        }}
-    }}
-</script>
+
+/* Texture and Metallic Gradients (Phase 2) */
+.gold-text {{
+    background: linear-gradient(135deg, var(--gold3) 0%, var(--gold) 50%, var(--gold2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: url(#grain);
+}}
+
+/* Specific Cards */
+.card-quote {{ background: var(--black); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--pad-quote); text-align: center; }}
+.card-quote .qt {{ font-size: 28px; line-height: 1.75; letter-spacing: .5px; margin-bottom: {qs_mt}; }}
+.card-quote .qs {{ font-family: 'EB Garamond', serif; font-size: 22px; font-style: italic; color: var(--gold); opacity: .85; z-index: 2; }}
+
+.card-slide {{ background: var(--deep); display: flex; flex-direction: column; justify-content: space-between; padding: var(--pad-slide); }}
+.card-slide .snum {{ position: absolute; right: 50px; top: 30px; font-size: 140px; color: var(--gold); opacity: 0.1; line-height: 1; pointer-events: none; font-family: 'Cinzel Decorative', serif; font-weight: 900; }}
+.card-slide .stitle {{ font-size: var(--title-size); line-height: 1.35; max-height: 250px; overflow: hidden; }}
+.card-slide .sbody {{ font-size: 24px; line-height: 1.8; color: var(--text); opacity: 0.9; margin-top: 24px; z-index: 2; position: relative; }}
+.progress-bar-container {{ position: absolute; bottom: 0; left: 0; height: 6px; width: 100%; background: rgba(0,0,0,0.5); z-index: 5; }}
+.progress-bar-fill {{ height: 100%; background: linear-gradient(90deg, var(--gold2), var(--gold3)); transition: width 0.3s; }}
+
+/* Character Card */
+.card-char {{ display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:240px !important;padding-left:80px !important; }}
+.cchar-bg {{ position:absolute;top:40px;left:0;right:0;text-align:center;font-family:'Cinzel Decorative',serif;font-weight:900;color:rgba(201,146,42,0.15);line-height:1;pointer-events:none;white-space:nowrap;z-index:5;letter-spacing:12px; }}
+.cchar-name {{ font-size:88px !important;font-weight:900;line-height:0.9;margin-bottom:15px;font-family:'Cinzel Decorative',serif;background:linear-gradient(135deg,var(--gold3),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 4px 15px rgba(0,0,0,0.8)); }}
+.cchar-traits {{ display:flex;flex-wrap:wrap;gap:15px;margin-bottom:40px; }}
+.cchar-quote {{ font-size:34px !important;line-height:1.5;color:var(--cream);font-weight:600;border-left:4px solid var(--gold);padding-left:25px;max-width:95%;font-style:italic;text-shadow:0 4px 15px rgba(0,0,0,0.9);z-index:10;position:relative; }}
+
+/* Reflection */
+.card-reflection {{ background: var(--black); display: flex; flex-direction: column; justify-content: center; padding: var(--pad-reflect); text-align: left; }}
+.card-reflection .rtitle {{ font-size: var(--title-size); margin-bottom: 28px; }}
+.card-reflection .rbody {{ font-size: 28px; line-height: 1.6; color: var(--text); font-weight: 500; position: relative; z-index: 2; }}
+
+/* KINETIC TYPOGRAPHY ANIMATION (Phase 4 basis) */
+.word {{ display: inline-block; transition: all 0.05s ease-in-out; }}
+.word.highlight {{ color: var(--gold3); text-shadow: 0 0 15px var(--gold); transform: scale(1.15); }}
 """
 
-def generate_quote_card(quote_text, source, bg_b64, sanskrit="", w=1080, h=1080):
-    css = get_brand_css(w, h)
-    lines, idx = wrap_words(quote_text.replace('\n', '<br>'), 0)
+def html_brand_js():
+    return """<script>
+    function setHighlight(idx) {
+        document.querySelectorAll('.word').forEach(e => e.classList.remove('highlight'));
+        if (idx >= 0) {
+            let el = document.getElementById('word-' + idx);
+            if(el) el.classList.add('highlight');
+        }
+    }
+    // Phase 2: Auto-fit Title
+    function autoFitTitles() {
+        let titles = document.querySelectorAll('.stitle, .rtitle, .qt');
+        titles.forEach(el => {
+            let fSize = parseInt(window.getComputedStyle(el).fontSize);
+            while(el.scrollHeight > el.clientHeight && fSize > 12) {
+                fSize -= 1;
+                el.style.fontSize = fSize + 'px';
+            }
+        });
+    }
+    document.addEventListener("DOMContentLoaded", autoFitTitles);
+</script>"""
+
+# HTML HELPERS (Phase 1 & 2 & 3)
+def html_svg_defs():
+    return """
+    <svg width="0" height="0" style="position:absolute;z-index:-1;">
+        <defs>
+            <filter id="duotone">
+                <feColorMatrix type="matrix" values="
+                    0.3 0.3 0.3 0 0
+                    0.3 0.3 0.3 0 0
+                    0.3 0.3 0.3 0 0
+                    0   0   0   1 0" />
+                <feComponentTransfer>
+                    <feFuncR type="linear" slope="1" intercept="0.1"/>
+                    <feFuncG type="linear" slope="0.8" intercept="0"/>
+                    <feFuncB type="linear" slope="0.2" intercept="0"/>
+                </feComponentTransfer>
+            </filter>
+            <filter id="grain">
+                <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" result="noise"/>
+                <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.15 0" in="noise" result="coloredNoise"/>
+                <feBlend in="SourceGraphic" in2="coloredNoise" mode="multiply"/>
+            </filter>
+        </defs>
+    </svg>
+    """
+
+def html_corner_frames():
+    return '<div class="cq-corner tl"></div><div class="cq-corner tr"></div><div class="cq-corner bl"></div><div class="cq-corner br"></div>'
+
+def html_brand_footer():
+    return '<div class="brand-footer"><div class="brand">@TheMahabharataMindset</div></div>'
+
+def html_bg(bg_b64):
+    if not bg_b64: return ""
+    return f"""<div class="battle-bg" style="background-image:url('{bg_b64}');"></div><div class="vignette-overlay"></div>"""
+
+def generate_quote_card(quote_text, source, bg_b64, sanskrit="", w=1080, h=1080, emotion="default"):
+    css = get_brand_css(w, h, emotion=emotion)
+    lines, idx = wrap_words(quote_text.replace('\\n', '<br>'), 0)
     source, idx = wrap_words(source, idx)
-    sanskrit, idx = wrap_words(sanskrit, idx)
     sanskrit_html = f'<div class="sanskrit">{sanskrit}</div>' if sanskrit else ""
-    bg_html = f'<div class="battle-bg" style="opacity:.12;background-image:url(\'{bg_b64}\');"></div>' if bg_b64 else ""
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style></head><body>
-<div class="card card-quote">{bg_html}
-  <div class="cq-corner tl"></div><div class="cq-corner tr"></div><div class="cq-corner bl"></div><div class="cq-corner br"></div>
-  <div class="orn">❝</div><div class="qt">{lines}</div><div class="qs">— {source}</div>{sanskrit_html}
-  <div class="btag">@TheMahabharataMindset</div>
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
+<div class="card card-quote">{html_bg(bg_b64)}{html_corner_frames()}
+  <div class="qt gold-text">{lines}</div><div class="qs">— {source}</div>{sanskrit_html}
+  {html_brand_footer()}
 </div></body></html>"""
 
-def generate_carousel_slide(series_tag, slide_num, total_slides, title, body, bg_b64, w=1080, h=1080):
-    css = get_brand_css(w, h)
+def generate_carousel_slide(series_tag, slide_num, total_slides, title, body, bg_b64, w=1080, h=1080, emotion="default"):
+    css = get_brand_css(w, h, emotion=emotion)
     title, idx = wrap_words(title, 0)
     body, idx = wrap_words(body, idx)
-    dots = "".join([f'<div class="dot{" on" if i == slide_num else ""}"></div>' for i in range(1, total_slides + 1)])
-    bg_html = f'<div class="battle-bg" style="opacity:.12;background-image:url(\'{bg_b64}\');"></div>' if bg_b64 else ""
     slide_num_str = str(slide_num).zfill(2)
-    body_html = f'<div class="sbody">{body}</div>' if body and body.strip() else ""
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style></head><body>
-<div class="card card-slide">{bg_html}
-  <div class="gline"></div><div class="snum">{slide_num_str}</div>
-  <div><div class="stag">{series_tag}</div><div class="stitle">{title}</div>{body_html}<div class="sdiv"></div></div>
-  <div class="sfooter"><div class="brand">@TheMahabharataMindset</div><div class="dots">{dots}</div></div>
+    progress_pct = (slide_num / total_slides) * 100
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
+<div class="card card-slide">{html_bg(bg_b64)}
+  <div class="snum gold-text">{slide_num_str}</div>
+  <div><div class="brand" style="margin-bottom:12px;">{series_tag}</div><div class="stitle gold-text">{title}</div><div class="sbody">{body}</div></div>
+  {html_brand_footer()}
+  <div class="progress-bar-container"><div class="progress-bar-fill" style="width: {progress_pct}%;"></div></div>
 </div></body></html>"""
 
-def generate_character_spotlight(name, title, traits_list, quote, bg_b64, w=1080, h=1080):
-    css = get_brand_css(w, h)
-    traits_html = "".join([f'<span class="trait" style="background:linear-gradient(135deg,#1A1308,#7A3B10);border:1px solid #C9922A;box-shadow:0 0 12px rgba(201,146,42,0.4);color:#F5D78E;padding:10px 22px;border-radius:2px;font-weight:700;letter-spacing:2px;display:inline-block;">{t}</span>' for t in traits_list])
-    bg_html = f'<div class="battle-bg" style="opacity:.35;background-image:url(\'{bg_b64}\');filter:brightness(0.6) contrast(1.15);"></div><div style="position:absolute;top:0;left:0;right:0;height:300px;background:linear-gradient(to bottom,rgba(10,8,4,0.8),transparent);z-index:1;"></div><div style="position:absolute;bottom:0;left:0;right:0;height:850px;background:linear-gradient(to top,rgba(10,8,4,1) 0%,rgba(10,8,4,0.95) 45%,rgba(10,8,4,0.85) 70%,transparent);z-index:2;"></div>' if bg_b64 else ""
-    name_upper = name.upper()
-    ghost_size = min(220, int(w / (len(name_upper) * 0.85)))
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}
-    .card-char {{ display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:240px !important;padding-left:80px !important; }}
-    .cchar-bg {{ position:absolute;top:40px;left:0;right:0;text-align:center;font-family:'Cinzel Decorative',serif;font-weight:900;color:rgba(201,146,42,0.25);line-height:1;pointer-events:none;white-space:nowrap;z-index:5;letter-spacing:12px; }}
-    .cchar-content-wrapper {{ position:relative;z-index:10;max-width:82%; }}
-    .block-header-brand {{ font-family:'Cinzel',serif;font-size:14px;letter-spacing:6px;color:var(--cream);opacity:0.9;margin-bottom:12px;text-transform:uppercase;text-shadow:0 3px 10px rgba(0,0,0,0.9); }}
-    .cchar-series {{ font-size:24px !important;color:var(--gold3);margin-bottom:8px;font-family:'Cinzel',serif;text-shadow:0 3px 10px rgba(0,0,0,0.9); }}
-    .cchar-name {{ font-size:88px !important;font-weight:900;line-height:0.9;margin-bottom:15px;font-family:'Cinzel Decorative',serif;background:linear-gradient(135deg,var(--gold3),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 4px 15px rgba(0,0,0,0.8)); }}
-    .cchar-title {{ font-size:22px !important;color:var(--cream);margin-bottom:35px;font-family:'Cinzel',serif;letter-spacing:3px;text-transform:uppercase;text-shadow:0 3px 10px rgba(0,0,0,0.9); }}
-    .cchar-traits {{ display:flex;flex-wrap:wrap;gap:15px;margin-bottom:40px; }}
-    .cchar-quote {{ font-size:34px !important;line-height:1.5;color:var(--cream);font-weight:600;border-left:4px solid var(--gold);padding-left:25px;max-width:95%;font-style:italic;text-shadow:0 4px 15px rgba(0,0,0,0.9); }}
-    </style></head><body>
-<div class="card card-char" style="background:#0A0804;">{bg_html}
-  <div class="cchar-bg" style="font-size:{ghost_size}px;">{name_upper}</div>
-  <div class="cchar-content-wrapper">
-    <div class="block-header-brand">@TheMahabharataMindset</div>
-    <div class="cchar-series">Character Spotlight</div>
-    <div class="cchar-name">{name}</div><div class="cchar-title">{title}</div>
-    <div class="cchar-traits">{traits_html}</div><div class="cchar-quote">"{quote}"</div>
+def generate_character_spotlight(name, title, traits_list, quote, bg_b64, w=1080, h=1080, emotion="default"):
+    css = get_brand_css(w, h, emotion=emotion)
+    traits_html = "".join([f'<span style="background:var(--black);border:1px solid var(--gold);color:var(--gold3);padding:10px 22px;border-radius:2px;font-weight:700;letter-spacing:2px;display:inline-block;z-index:10;position:relative;">{t}</span>' for t in traits_list])
+    ghost_size = min(220, int(w / (len(name.upper()) * 0.85)))
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
+<div class="card card-char">{html_bg(bg_b64)}
+  <div class="cchar-bg" style="font-size:{ghost_size}px;">{name.upper()}</div>
+  <div style="position:relative;z-index:10;max-width:82%;">
+    <div class="brand" style="margin-bottom:12px;">Character Spotlight</div>
+    <div class="cchar-name gold-text">{name}</div><div class="stitle" style="font-size:22px;letter-spacing:3px;margin-bottom:35px;">{title}</div>
+    <div class="cchar-traits">{traits_html}</div><div class="cchar-quote gold-text">"{quote}"</div>
   </div>
 </div></body></html>"""
 
-def generate_reflection(tag, title, body, bg_b64, w=1080, h=1080):
-    css = get_brand_css(w, h)
-    title_html, idx = wrap_words(title.replace('\n', '<br>'), 0)
+def generate_reflection(tag, title, body, bg_b64, w=1080, h=1080, emotion="default"):
+    css = get_brand_css(w, h, emotion=emotion)
+    title_html, idx = wrap_words(title.replace('\\n', '<br>'), 0)
     body, idx = wrap_words(body, idx)
-    bg_html = f'<div class="battle-bg" style="opacity:.12;background-image:url(\'{bg_b64}\');"></div>' if bg_b64 else ""
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style></head><body>
-<div class="card card-reflection">{bg_html}
-  <div class="rtag">{tag}</div><div class="rtitle">{title_html}</div><div class="rdash"></div>
-  <div class="rbody">{body}</div><div class="rbrand">@TheMahabharataMindset</div>
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
+<div class="card card-reflection">{html_bg(bg_b64)}
+  <div class="brand" style="margin-bottom:28px;">{tag}</div>
+  <div class="rtitle gold-text">{title_html}</div>
+  <div class="svg-divider"><svg width="60" height="8" viewBox="0 0 60 8" fill="none"><path d="M0 4L30 0L60 4L30 8L0 4Z" fill="var(--gold)"/></svg></div>
+  <div class="rbody">{body}</div>
+  {html_brand_footer()}
 </div></body></html>"""
 
-def generate_list_post(tag, title, items, bg_b64, w=1080, h=1080):
-    css = get_brand_css(w, h)
-    items_html = "".join([f'<div class="litem"><span class="lnum">{i}</span><span class="ltxt">{item}</span></div>' for i, item in enumerate(items, 1)])
-    bg_html = f'<div class="battle-bg" style="opacity:.12;background-image:url(\'{bg_b64}\');"></div>' if bg_b64 else ""
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style></head><body>
-<div class="card card-list">{bg_html}<div class="gline"></div>
-  <div><div class="ltag">{tag}</div><div class="ltitle">{title}</div></div>
-  <div>{items_html}</div><div class="lbrand">@TheMahabharataMindset</div>
+def generate_list_post(tag, title, items, bg_b64, w=1080, h=1080, emotion="default"):
+    css = get_brand_css(w, h, emotion=emotion)
+    items_html = "".join([f"""<div style="display:flex;gap:22px;margin-bottom:20px;z-index:2;position:relative;"><span class="stitle gold-text" style="font-size:28px;min-width:35px;">{i}</span><span style="font-family:'EB Garamond';font-size:24px;color:var(--text);line-height:1.6;">{item}</span></div>""" for i, item in enumerate(items, 1)])
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
+<div class="card card-slide">{html_bg(bg_b64)}
+  <div><div class="brand" style="margin-bottom:16px;">{tag}</div><div class="stitle gold-text" style="font-size:34px;margin-bottom:36px;">{title}</div></div>
+  <div>{items_html}</div>
+  {html_brand_footer()}
 </div></body></html>"""
 
-def generate_series_cover(series_label, number, title, subtitle, bg_b64, w=1080, h=1080):
-    css = get_brand_css(w, h)
-    title_html = title.replace('\n', '<br>')
-    bg_html = f'<div class="battle-bg" style="opacity:.12;background-image:url(\'{bg_b64}\');"></div>' if bg_b64 else ""
+def generate_series_cover(series_label, number, title, subtitle, bg_b64, w=1080, h=1080, emotion="default"):
+    css = get_brand_css(w, h, emotion=emotion)
+    title_html = title.replace('\\n', '<br>')
     num_str = str(number).zfill(2)
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style></head><body>
-<div class="card card-cover">{bg_html}
-  <div class="rings"><svg width="900" height="900" viewBox="0 0 300 300" fill="none" opacity=".12"><circle cx="150" cy="150" r="140" stroke="#C9922A" stroke-width="1"/><circle cx="150" cy="150" r="110" stroke="#C9922A" stroke-width="1"/><circle cx="150" cy="150" r="80" stroke="#C9922A" stroke-width="1"/><line x1="150" y1="10" x2="150" y2="290" stroke="#C9922A" stroke-width=".8"/><line x1="10" y1="150" x2="290" y2="150" stroke="#C9922A" stroke-width=".8"/><line x1="51" y1="51" x2="249" y2="249" stroke="#C9922A" stroke-width=".8"/><line x1="249" y1="51" x2="51" y2="249" stroke="#C9922A" stroke-width=".8"/></svg></div>
-  <div class="series-label">{series_label}</div><div class="cnum">{num_str}</div>
-  <div class="ctitle">{title_html}</div><div class="csub">{subtitle}</div>
-  <div class="cbrand">@TheMahabharataMindset</div>
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
+<div class="card card-quote">{html_bg(bg_b64)}
+  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;"><svg width="900" height="900" viewBox="0 0 300 300" fill="none" opacity=".12"><circle cx="150" cy="150" r="140" stroke="var(--gold)" stroke-width="1"/><circle cx="150" cy="150" r="110" stroke="var(--gold)" stroke-width="1"/><circle cx="150" cy="150" r="80" stroke="var(--gold)" stroke-width="1"/></svg></div>
+  <div class="brand" style="border:1px solid rgba(201,146,42,.28);padding:8px 22px;margin-bottom:16px;z-index:2;">{series_label}</div>
+  <div class="stitle gold-text" style="font-size:160px;line-height:1;margin:16px 0;">{num_str}</div>
+  <div class="stitle gold-text" style="font-size:34px;letter-spacing:3px;">{title_html}</div>
+  <div style="margin-top:22px;font-family:'EB Garamond';font-size:22px;font-style:italic;color:rgba(242,232,208,.38);z-index:2;position:relative;">{subtitle}</div>
+  {html_brand_footer()}
 </div></body></html>"""
 
-
-def render_from_final(data, bg_b64, card_w, card_h):
-    """Render HTML from the editor's final output data dict."""
+def render_from_final(data, bg_b64, card_w, card_h, emotion="default"):
     t_type = data.get("template_type", "")
-    html = None
     if t_type == "Quote Card":
-        html = generate_quote_card(data.get("quote_text") or "", data.get("quote_source") or "", bg_b64, data.get("quote_sanskrit") or "", card_w, card_h)
+        return generate_quote_card(data.get("quote_text") or "", data.get("quote_source") or "", bg_b64, data.get("quote_sanskrit") or "", card_w, card_h, emotion=emotion)
     elif t_type == "Carousel Slide":
         slides = data.get("carousel_slides") or []
         if slides:
             s = slides[0]
             sl = s if isinstance(s, dict) else s.__dict__
-            html = generate_carousel_slide(data.get("carousel_tag") or "", sl.get("slide_num", 1), len(slides), sl.get("title", ""), sl.get("body", ""), bg_b64, card_w, card_h)
+            return generate_carousel_slide(data.get("carousel_tag") or "", sl.get("slide_num", 1), len(slides), sl.get("title", ""), sl.get("body", ""), bg_b64, card_w, card_h, emotion=emotion)
     elif t_type == "Character Spotlight":
-        html = generate_character_spotlight(data.get("char_name") or "", data.get("char_title") or "", data.get("char_traits") or [], data.get("char_quote") or "", bg_b64, card_w, card_h)
+        return generate_character_spotlight(data.get("char_name") or "", data.get("char_title") or "", data.get("char_traits") or [], data.get("char_quote") or "", bg_b64, card_w, card_h, emotion=emotion)
     elif t_type == "Reflection Post":
-        html = generate_reflection(data.get("reflection_tag") or "", data.get("reflection_title") or "", data.get("reflection_body") or "", bg_b64, card_w, card_h)
+        return generate_reflection(data.get("reflection_tag") or "", data.get("reflection_title") or "", data.get("reflection_body") or "", bg_b64, card_w, card_h, emotion=emotion)
     elif t_type == "List / Tips":
-        html = generate_list_post(data.get("list_tag") or "", data.get("list_title") or "", data.get("list_items") or [], bg_b64, card_w, card_h)
+        return generate_list_post(data.get("list_tag") or "", data.get("list_title") or "", data.get("list_items") or [], bg_b64, card_w, card_h, emotion=emotion)
     elif t_type == "Series Cover":
-        html = generate_series_cover(data.get("cover_label") or "", data.get("cover_number") or 1, data.get("cover_title") or "", data.get("cover_subtitle") or "", bg_b64, card_w, card_h)
-    return html
+        return generate_series_cover(data.get("cover_label") or "", data.get("cover_number") or 1, data.get("cover_title") or "", data.get("cover_subtitle") or "", bg_b64, card_w, card_h, emotion=emotion)
+    return None
+
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1595,7 +1657,7 @@ with tab_archive:
                 else:
                     pw, ph = 1080, 1080
                 ph_display = int(400 * ph / pw)
-                preview_html = render_from_final(preview_final, bg_b64, pw, ph)
+                preview_html = render_from_final(preview_final, bg_b64, pw, ph, emotion=b.get("emotional_core", "default"))
                 if preview_html:
                     st.components.v1.html(preview_html, height=ph_display, scrolling=False)
 
