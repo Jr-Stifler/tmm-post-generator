@@ -956,18 +956,29 @@ FORMATS = {
 
 
 def get_brand_css(w, h, is_reel=False, emotion="default"):
-    pad_quote = "140px 70px" if is_reel else "80px"
-    pad_slide = "120px 70px 180px 70px" if is_reel else "60px 50px 100px 50px"
-    pad_reflect = "120px 70px" if is_reel else "70px"
-    pad_list = "120px 70px" if is_reel else "70px"
-    pad_cover = "140px 70px" if is_reel else "80px 70px"
-    qs_mt = "42px" if is_reel else "28px"
-    corner_size = "100px" if is_reel else "80px"
-    corner_inset = "44px" if is_reel else "32px"
+    # Auto-detect reel from aspect ratio (9:16 = h > w * 1.5)
+    is_reel = is_reel or (h > w * 1.4)
+    
+    pad_quote = "200px 80px" if is_reel else "80px"
+    pad_slide = "180px 80px 200px 80px" if is_reel else "60px 50px 100px 50px"
+    pad_reflect = "200px 80px 180px 80px" if is_reel else "70px"
+    pad_list = "180px 80px" if is_reel else "70px"
+    pad_cover = "200px 80px" if is_reel else "80px 70px"
+    qs_mt = "52px" if is_reel else "28px"
+    corner_size = "120px" if is_reel else "80px"
+    corner_inset = "52px" if is_reel else "32px"
     reflect_title_size = "38px" if is_reel else "32px"
-    reflect_title_render = "52px" if is_reel else "var(--title-size)"
-    reflect_body_size = "34px" if is_reel else "28px"
-    reflect_bottom_pad = "280px" if is_reel else "70px"
+    reflect_title_render = "72px" if is_reel else "var(--title-size)"
+    reflect_body_size = "40px" if is_reel else "28px"
+    reflect_bottom_pad = "180px" if is_reel else "70px"
+    
+    # Reel-specific overrides for other card types
+    quote_font_size = "38px" if is_reel else "28px"
+    quote_source_size = "28px" if is_reel else "22px"
+    slide_title_size = "48px" if is_reel else "var(--title-size)"
+    slide_body_size = "30px" if is_reel else "24px"
+    brand_size = "16px" if is_reel else "14px"
+    brand_spacing = "7px" if is_reel else "5px"
 
     # Phase 2: Emotion Mapping Lookup Table
     emotion_lower = str(emotion).lower()
@@ -1012,7 +1023,7 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 .cq-corner.bl {{ bottom: var(--corner-inset); left: var(--corner-inset); border-bottom: 2px solid var(--gold); border-left: 2px solid var(--gold); }}
 .cq-corner.br {{ bottom: var(--corner-inset); right: var(--corner-inset); border-bottom: 2px solid var(--gold); border-right: 2px solid var(--gold); }}
 
-.brand {{ font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 5px; text-transform: uppercase; color: var(--gold); opacity: 0.6; z-index: 3; position: relative; }}
+.brand {{ font-family: 'Cinzel', serif; font-size: {brand_size}; letter-spacing: {brand_spacing}; text-transform: uppercase; color: var(--gold); opacity: 0.6; z-index: 3; position: relative; }}
 .brand-footer {{ position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: 100%; text-align: center; }}
 
 /* SVG Divider (Phase 3) */
@@ -1039,13 +1050,13 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 
 /* Specific Cards */
 .card-quote {{ background: var(--black); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--pad-quote); text-align: center; }}
-.card-quote .qt {{ font-size: 28px; line-height: 1.75; letter-spacing: .5px; margin-bottom: {qs_mt}; }}
-.card-quote .qs {{ font-family: 'EB Garamond', serif; font-size: 22px; font-style: italic; color: var(--gold); opacity: .85; z-index: 2; }}
+.card-quote .qt {{ font-size: {quote_font_size}; line-height: 1.75; letter-spacing: .5px; margin-bottom: {qs_mt}; }}
+.card-quote .qs {{ font-family: 'EB Garamond', serif; font-size: {quote_source_size}; font-style: italic; color: var(--gold); opacity: .85; z-index: 2; }}
 
 .card-slide {{ background: var(--deep); display: flex; flex-direction: column; justify-content: space-between; padding: var(--pad-slide); }}
 .card-slide .snum {{ position: absolute; right: 50px; top: 30px; font-size: 140px; color: var(--gold); opacity: 0.1; line-height: 1; pointer-events: none; font-family: 'Cinzel Decorative', serif; font-weight: 900; }}
-.card-slide .stitle {{ font-size: var(--title-size); line-height: 1.35; max-height: 250px; overflow: hidden; }}
-.card-slide .sbody {{ font-size: 24px; line-height: 1.8; color: var(--text); opacity: 0.9; margin-top: 24px; z-index: 2; position: relative; }}
+.card-slide .stitle {{ font-size: {slide_title_size}; line-height: 1.35; max-height: 350px; overflow: hidden; }}
+.card-slide .sbody {{ font-size: {slide_body_size}; line-height: 1.8; color: var(--text); opacity: 0.9; margin-top: 24px; z-index: 2; position: relative; }}
 .progress-bar-container {{ position: absolute; bottom: 0; left: 0; height: 6px; width: 100%; background: rgba(0,0,0,0.5); z-index: 5; }}
 .progress-bar-fill {{ height: 100%; background: linear-gradient(90deg, var(--gold2), var(--gold3)); transition: width 0.3s; }}
 
@@ -1057,9 +1068,10 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 .cchar-quote {{ font-size:34px !important;line-height:1.5;color:var(--cream);font-weight:600;border-left:4px solid var(--gold);padding-left:25px;max-width:95%;font-style:italic;text-shadow:0 4px 15px rgba(0,0,0,0.9);z-index:10;position:relative; }}
 
 /* Reflection */
-.card-reflection {{ background: var(--black); display: flex; flex-direction: column; justify-content: flex-end; padding: var(--pad-reflect); padding-bottom: {reflect_bottom_pad}; text-align: left; }}
-.card-reflection .rtitle {{ font-size: {reflect_title_render}; margin-bottom: 28px; line-height: 1.15; }}
-.card-reflection .rbody {{ font-size: {reflect_body_size}; line-height: 1.6; color: var(--text); font-weight: 500; position: relative; z-index: 2; }}
+.card-reflection {{ background: var(--black); display: flex; flex-direction: column; justify-content: center; padding: var(--pad-reflect); text-align: left; }}
+.card-reflection .rtitle {{ font-size: {reflect_title_render}; margin-bottom: 36px; line-height: 1.15; }}
+.card-reflection .rbody {{ font-size: {reflect_body_size}; line-height: 1.65; color: var(--text); font-weight: 500; position: relative; z-index: 2; }}
+.card-reflection .svg-divider {{ margin: 36px 0; }}
 
 /* KINETIC TYPOGRAPHY ANIMATION (Phase 5 — cinematic motion) */
 .word {{ display: inline-block; opacity: 0; transition: color 0.15s ease, text-shadow 0.15s ease, opacity 0.12s ease; }}
