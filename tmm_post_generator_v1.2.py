@@ -716,6 +716,7 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     
     # 1. Normalize timestamps so words_data starts exactly at 0.0
     # This prevents the text from trailing the voice if ElevenLabs padding exists
+    t0 = 0.0
     if words_data:
         t0 = words_data[0]['start']
         for w in words_data:
@@ -751,6 +752,10 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     # 4. Assemble
     video = concatenate_videoclips(clips, method="compose")
     audio = AudioFileClip(temp_audio)
+    
+    # Trim the ElevenLabs leading silence (t0) from the audio track
+    if t0 > 0 and audio.duration > t0:
+        audio = audio.subclip(t0)
     
     # The video is INTRO_DURATION longer than the audio inherently.
     # We add a TEXT_LEAD_TIME so the text highlights BEFORE the voice speaks (like movie subtitles).
@@ -1680,7 +1685,7 @@ with tab_engine:
                                     
                                     st.write("🎞️ Assembling Reel via MoviePy...")
                                     temp_video_path = f"tmm_reel_{int(time.time())}.mp4"
-                                    compile_video_reel(audio_bytes, words_data, frames_bytes, temp_video_path)
+                                    compile_video_reel(audio_bytes, words_data, frames_bytes, temp_video_path, total_words=len(spoken_words))
                                     
                                     with open(temp_video_path, "rb") as f:
                                         st.download_button("⬇ Download Reel (.mp4)", f, file_name="tmm_reel.mp4", mime="video/mp4", key="dl_mp4_engine")
