@@ -782,15 +782,15 @@ def group_characters_to_words(alignment):
 
 def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="reel.mp4", total_words=0):
     """
-    Compiles the reel from audio, word timings, and frame PNGs.
+    Compiles the reel from audio and the 30fps perfectly timed frame PNGs.
     """
-    from moviepy import ImageClip, concatenate_videoclips, AudioFileClip
+    from moviepy import ImageSequenceClip, AudioFileClip, AudioClip, CompositeAudioClip
     import tempfile
     import os
+    import numpy as np
     
-    INTRO_FRAMES = 12
+    fps = 30
     INTRO_DURATION = 0.5  # seconds
-    FRAME_DUR = INTRO_DURATION / INTRO_FRAMES  # ~0.0417s per intro frame
     
     # Save audio to temp
     fd_a, temp_audio = tempfile.mkstemp(suffix=".mp3")
@@ -798,74 +798,41 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
         f.write(audio_bytes)
     os.close(fd_a)
     
-    clips = []
-    
-    # 1. Validate token mapping length
-    if words_data and len(words_data) != total_words:
-        print(f"Warning: Token mismatch! ElevenLabs found {len(words_data)} words, but HTML has {total_words} words.")
-
-    # 2. Intro frames (0.5s total, entrance animation before voiceover)
-    for intro_i in range(INTRO_FRAMES):
-        fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        with open(t_img, "wb") as f: f.write(frames_bytes[intro_i])
-        os.close(fd_img)
-        clips.append(ImageClip(t_img).with_duration(FRAME_DUR))
+    # Save frames to temp directory
+    temp_dir = tempfile.mkdtemp()
+    frame_files = []
+    for i, frame_bytes in enumerate(frames_bytes):
+        filepath = os.path.join(temp_dir, f"frame_{i:04d}.jpg")
+        with open(filepath, "wb") as f:
+            f.write(frame_bytes)
+        frame_files.append(filepath)
         
-    # 2.5. Pre-roll gap (if the audio has silence/breaths before the first word)
-    if words_data and words_data[0]['start'] > 0:
-        gap_dur = words_data[0]['start']
-        fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        # Hold the last intro frame (where text is fully visible but not highlighted)
-        with open(t_img, "wb") as f: f.write(frames_bytes[INTRO_FRAMES - 1])
-        os.close(fd_img)
-        clips.append(ImageClip(t_img).with_duration(gap_dur))
-        
-    # 3. Word frames
-    for i, w in enumerate(words_data):
-        dur = w['end'] - w['start']
-        if i < len(words_data) - 1:
-            gap = words_data[i+1]['start'] - w['end']
-            dur += gap # Keep the word highlighted during gap (looks better)
-            
-        fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        # Ensure we don't go out of bounds if there's a token mismatch
-        frame_idx = INTRO_FRAMES + min(i, total_words - 1) if total_words > 0 else INTRO_FRAMES + i
-        if frame_idx < len(frames_bytes):
-            with open(t_img, "wb") as f: f.write(frames_bytes[frame_idx])
-        os.close(fd_img)
-        clips.append(ImageClip(t_img).with_duration(dur))
-        
-    # 4. Assemble
-    video = concatenate_videoclips(clips, method="compose")
+    video = ImageSequenceClip(frame_files, fps=fps)
     audio = AudioFileClip(temp_audio)
     
-    # The audio starts immediately after the intro (0.5s).
-    # Since we kept the pre-roll gap in the video timeline, it syncs 1:1 natively.
-    AUDIO_OFFSET = INTRO_DURATION
-    
-    total_needed = AUDIO_OFFSET + audio.duration
-    if total_needed > video.duration:
-        fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        with open(t_img, "wb") as f: f.write(frames_bytes[-1])
-        os.close(fd_img)
-        last_clip = ImageClip(t_img).with_duration(total_needed - video.duration)
-        video = concatenate_videoclips([video, last_clip], method="compose")
-
     # Create silent intro + actual audio
-    import numpy as np
-    from moviepy import AudioClip, CompositeAudioClip
-    
     def make_silence(t):
         if isinstance(t, np.ndarray):
             return np.zeros((len(t), 2))
         return np.array([0.0, 0.0])
         
-    silence = AudioClip(make_silence, duration=AUDIO_OFFSET, fps=44100)
+    silence = AudioClip(make_silence, duration=INTRO_DURATION, fps=44100)
     
-    # We must ensure audio handles correctly
-    offset_audio = CompositeAudioClip([silence, audio.with_start(AUDIO_OFFSET)])
+    # Mix the silence + delayed audio
+    offset_audio = CompositeAudioClip([silence, audio.with_start(INTRO_DURATION)])
+    
+    # We must ensure audio duration doesn't exceed video duration (or vice versa)
     video = video.with_audio(offset_audio)
-    video.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac", ffmpeg_params=["-crf", "18", "-pix_fmt", "yuv420p", "-preset", "slow"])
+    video.write_videofile(output_filename, fps=fps, codec="libx264", audio_codec="aac", ffmpeg_params=["-crf", "18", "-pix_fmt", "yuv420p", "-preset", "slow"])
+    
+    # Cleanup temp files (best effort)
+    try:
+        os.remove(temp_audio)
+        for f in frame_files:
+            os.remove(f)
+        os.rmdir(temp_dir)
+    except:
+        pass
     
     return output_filename
 
@@ -984,18 +951,22 @@ def wrap_words(text, start_idx=0):
                 wrapped.append(w) # pure punctuation like em-dashes, no span
     return " ".join(wrapped), idx
 
-def get_video_frames(html_content, words_data, w=1080, h=1920):
+def get_video_frames(html_content, words_data, w=1080, h=1920, audio_duration=0.0):
     """Uses Playwright to snapshot JS-driven cinematic frames.
     
     Generates:
-      - 12 intro frames (0.5s at 24fps) for entrance animation
-      - 1 frame per word for karaoke highlight
-      - 1 end frame (all revealed, no highlight)
+      - 30 fps continuous frames for perfectly smooth kinetic typography
     """
     from playwright.sync_api import sync_playwright
+    import json
+    
     frames = []
-    total_words = len(words_data)
-    INTRO_FRAMES = 12  # 0.5s at 24fps
+    fps = 30
+    INTRO_DURATION = 0.5
+    total_duration = INTRO_DURATION + audio_duration
+    total_frames = int(total_duration * fps)
+    
+    words_data_json = json.dumps(words_data).replace("'", "\\'")
     
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -1006,23 +977,16 @@ def get_video_frames(html_content, words_data, w=1080, h=1920):
         import time
         time.sleep(1.5)
         
-        # Intro frames: staggered entrance, no words revealed yet
-        for intro_i in range(INTRO_FRAMES):
-            # Use negative idx so no words are revealed, but entrances fire progressively
-            # Map intro_i to entrance frame range (-INTRO_FRAMES .. -1)
-            entrance_frame = int((intro_i / INTRO_FRAMES) * 6)  # map to entrance trigger range 0-5
-            page.evaluate(f"setFrame({-INTRO_FRAMES + intro_i}, {total_words})")
-            frames.append(page.screenshot(type="png"))
+        # We need to map frame_idx to real time.
+        # At frame_idx 0, t = -0.5 (start of intro)
+        # At frame_idx (0.5 * fps), t = 0.0 (audio starts)
         
-        # Word frames: one per word
-        for i in range(total_words):
-            page.evaluate(f"setFrame({i}, {total_words})")
-            frames.append(page.screenshot(type="png"))
+        for f in range(total_frames):
+            t = (f / fps) - INTRO_DURATION
+            # We call renderFrame with exact time t
+            page.evaluate(f"renderFrame({t}, '{words_data_json}')")
+            frames.append(page.screenshot(type="jpeg", quality=90))
             
-        # End frame: all revealed, no highlight
-        page.evaluate(f"setFrame({total_words}, {total_words})")
-        frames.append(page.screenshot(type="png"))
-        
         browser.close()
     return frames
 
@@ -1186,13 +1150,50 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 
 def html_brand_js():
     return """<script>
-    /* Phase 5: Cinematic frame driver for reel pipeline */
-    function setFrame(idx, totalFrames) {
+    /* Phase 7: Frame-by-Frame Continuous Rendering Engine */
+    function renderFrame(t, wordsDataStr) {
         var words = document.querySelectorAll('.word');
+        var wordsData = JSON.parse(wordsDataStr);
+        
         words.forEach(function(e, i) {
-            if (i <= idx) { e.classList.add('revealed'); } else { e.classList.remove('revealed'); }
-            if (i === idx) { e.classList.add('highlight'); } else { e.classList.remove('highlight'); }
+            if (!wordsData[i]) return;
+            var w = wordsData[i];
+            
+            var opacity = 0;
+            var scale = 1.0;
+            var isHighlight = false;
+            var fadeTime = 0.15;
+            
+            if (t < w.start - fadeTime) {
+                opacity = 0;
+                scale = 1.0;
+            } else if (t >= w.start - fadeTime && t < w.start) {
+                var p = (t - (w.start - fadeTime)) / fadeTime;
+                opacity = p;
+                scale = 1.0 + (0.1 * p); // smoothly zoom to 1.1
+            } else if (t >= w.start && t <= w.end) {
+                opacity = 1;
+                scale = 1.1;
+                isHighlight = true;
+            } else if (t > w.end && t <= w.end + fadeTime) {
+                var p = (t - w.end) / fadeTime;
+                opacity = 1;
+                scale = 1.1 - (0.1 * p); // smoothly zoom down to 1.0
+            } else {
+                opacity = 1;
+                scale = 1.0;
+            }
+            
+            e.style.opacity = opacity;
+            e.style.transform = "scale(" + scale + ")";
+            
+            if (isHighlight) {
+                e.classList.add('highlight');
+            } else {
+                e.classList.remove('highlight');
+            }
         });
+
 
         /* Ken Burns on background */
         var bg = document.querySelector('.battle-bg');
@@ -1775,8 +1776,19 @@ with tab_engine:
                                     )
                                     words_data = group_characters_to_words(alignment)
                                     
-                                    st.write(f"🖼️ Rendering {len(words_data)} kinetic typography frames...")
-                                    frames_bytes = get_video_frames(html, words_data, render_w, render_h)
+                                    import tempfile
+                                    from moviepy import AudioFileClip
+                                    fd_a, temp_audio = tempfile.mkstemp(suffix=".mp3")
+                                    with open(temp_audio, "wb") as f:
+                                        f.write(audio_bytes)
+                                    os.close(fd_a)
+                                    audio_clip = AudioFileClip(temp_audio)
+                                    audio_duration = audio_clip.duration
+                                    audio_clip.close()
+                                    os.remove(temp_audio)
+                                    
+                                    st.write(f"🖼️ Rendering continuous 30fps frames (duration: {audio_duration}s)...")
+                                    frames_bytes = get_video_frames(html, words_data, render_w, render_h, audio_duration=audio_duration)
                                     
                                     st.write("🎞️ Assembling Reel via MoviePy...")
                                     temp_video_path = f"tmm_reel_{int(time.time())}.mp4"
