@@ -694,14 +694,9 @@ def group_characters_to_words(alignment):
         
     return words
 
-def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="reel.mp4"):
+def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="reel.mp4", total_words=0):
     """
     Compiles the reel from audio, word timings, and frame PNGs.
-    
-    Frame layout (from get_video_frames):
-      - frames_bytes[0..11]: 12 intro frames (0.5s entrance animation)
-      - frames_bytes[12..12+N-1]: N word-highlight frames
-      - frames_bytes[12+N]: end frame (all revealed, no highlight)
     """
     from moviepy import ImageClip, concatenate_videoclips, AudioFileClip
     import tempfile
@@ -719,23 +714,26 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     
     clips = []
     
-    # 1. Intro frames (0.5s total, entrance animation before voiceover)
+    # 1. Normalize timestamps so words_data starts exactly at 0.0
+    # This prevents the text from trailing the voice if ElevenLabs padding exists
+    if words_data:
+        t0 = words_data[0]['start']
+        for w in words_data:
+            w['start'] -= t0
+            w['end'] -= t0
+            
+    # 1.5. Validate token mapping length
+    if words_data and len(words_data) != total_words:
+        print(f"Warning: Token mismatch! ElevenLabs found {len(words_data)} words, but HTML has {total_words} words.")
+
+    # 2. Intro frames (0.5s total, entrance animation before voiceover)
     for intro_i in range(INTRO_FRAMES):
         fd_img, t_img = tempfile.mkstemp(suffix=".png")
         with open(t_img, "wb") as f: f.write(frames_bytes[intro_i])
         os.close(fd_img)
         clips.append(ImageClip(t_img).with_duration(FRAME_DUR))
-    
-    # 2. Pre-first-word gap (if voiceover has silence before first word)
-    first_word_start = words_data[0]['start'] if words_data else 0.0
-    if first_word_start > 0:
-        # Use the last intro frame (fully entered, no words yet) as the hold
-        fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        with open(t_img, "wb") as f: f.write(frames_bytes[INTRO_FRAMES - 1])
-        os.close(fd_img)
-        clips.append(ImageClip(t_img).with_duration(first_word_start))
         
-    # 3. Word frames
+    # 3. Word frames (pre-gap removed, starts directly after intro)
     for i, w in enumerate(words_data):
         dur = w['end'] - w['start']
         if i < len(words_data) - 1:
@@ -743,7 +741,10 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
             dur += gap # Keep the word highlighted during gap (looks better)
             
         fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        with open(t_img, "wb") as f: f.write(frames_bytes[INTRO_FRAMES + i])
+        # Ensure we don't go out of bounds if there's a token mismatch
+        frame_idx = INTRO_FRAMES + min(i, total_words - 1) if total_words > 0 else INTRO_FRAMES + i
+        if frame_idx < len(frames_bytes):
+            with open(t_img, "wb") as f: f.write(frames_bytes[frame_idx])
         os.close(fd_img)
         clips.append(ImageClip(t_img).with_duration(dur))
         
@@ -878,12 +879,9 @@ hr { border-color: rgba(201,146,42,0.15) !important; }
 # SECTION 5: HELPERS & TEMPLATE GENERATORS
 # ═══════════════════════════════════════════════════════════════
 
-def wrap_words(text: str, start_idx=0):
-    """Wraps each word in a span for JS highlighting."""
+def wrap_words(text, start_idx=0):
     if not text:
         return "", start_idx
-    
-    # We must respect <br> tags. So we temporarily replace them, split by space, and restore.
     text = text.replace('<br>', ' <br> ')
     words = text.split()
     wrapped = []
@@ -892,8 +890,12 @@ def wrap_words(text: str, start_idx=0):
         if w == '<br>':
             wrapped.append(w)
         else:
-            wrapped.append(f'<span class="word" id="word-{idx}">{w}</span>')
-            idx += 1
+            clean_w = ''.join(c for c in w if c.isalnum())
+            if clean_w: # It has speakable characters
+                wrapped.append(f'<span class="word" id="word-{idx}">{w}</span>')
+                idx += 1
+            else:
+                wrapped.append(w) # pure punctuation like em-dashes, no span
     return " ".join(wrapped), idx
 
 def get_video_frames(html_content, words_data, w=1080, h=1920):
@@ -1220,14 +1222,17 @@ def generate_quote_card(quote_text, source, bg_b64, sanskrit="", w=1080, h=1080,
 
 def generate_carousel_slide(series_tag, slide_num, total_slides, title, body, bg_b64, w=1080, h=1080, emotion="default"):
     css = get_brand_css(w, h, emotion=emotion)
-    title, idx = wrap_words(title, 0)
-    body, idx = wrap_words(body, idx)
+    title_html, idx = wrap_words(title, 0)
+    if not title.strip().endswith(('.', '?', '!', '...')):
+        title_html += '<span class="word" style="display:none;">...</span>'
+        idx += 1
+    body_html, idx = wrap_words(body, idx)
     slide_num_str = str(slide_num).zfill(2)
     progress_pct = (slide_num / total_slides) * 100
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-slide">{html_bg(bg_b64)}
   <div class="snum gold-text">{slide_num_str}</div>
-  <div><div class="brand entrance" style="margin-bottom:12px;">{series_tag}</div><div class="stitle gold-text">{title}</div><div class="sbody">{body}</div></div>
+  <div><div class="brand entrance" style="margin-bottom:12px;">{series_tag}</div><div class="stitle gold-text">{title_html}</div><div class="sbody">{body_html}</div></div>
   {html_brand_footer()}
   <div class="progress-bar-container"><div class="progress-bar-fill" style="width: {progress_pct}%;"></div></div>
 </div></body></html>"""
@@ -1236,26 +1241,42 @@ def generate_character_spotlight(name, title, traits_list, quote, bg_b64, w=1080
     css = get_brand_css(w, h, emotion=emotion)
     traits_html = "".join([f'<span style="background:var(--black);border:1px solid var(--gold);color:var(--gold3);padding:10px 22px;border-radius:2px;font-weight:700;letter-spacing:2px;display:inline-block;z-index:10;position:relative;">{t}</span>' for t in traits_list])
     ghost_size = min(220, int(w / (len(name.upper()) * 0.85)))
+    
+    name_html, idx = wrap_words(name, 0)
+    if not name.strip().endswith(('.', '?', '!')):
+        name_html += '<span class="word" style="display:none;">.</span>'
+        idx += 1
+        
+    title_html, idx = wrap_words(title, idx)
+    if not title.strip().endswith(('.', '?', '!')):
+        title_html += '<span class="word" style="display:none;">.</span>'
+        idx += 1
+        
+    quote_html, idx = wrap_words(quote, idx)
+    
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-char">{html_bg(bg_b64)}
   <div class="cchar-bg" style="font-size:{ghost_size}px;">{name.upper()}</div>
   <div style="position:relative;z-index:10;max-width:82%;">
     <div class="brand entrance" style="margin-bottom:12px;">Character Spotlight</div>
-    <div class="cchar-name gold-text">{name}</div><div class="stitle" style="font-size:22px;letter-spacing:3px;margin-bottom:35px;">{title}</div>
-    <div class="cchar-traits">{traits_html}</div><div class="cchar-quote gold-text">"{quote}"</div>
+    <div class="cchar-name gold-text">{name_html}</div><div class="stitle" style="font-size:22px;letter-spacing:3px;margin-bottom:35px;">{title_html}</div>
+    <div class="cchar-traits">{traits_html}</div><div class="cchar-quote gold-text">"{quote_html}"</div>
   </div>
 </div></body></html>"""
 
 def generate_reflection(tag, title, body, bg_b64, w=1080, h=1080, emotion="default"):
     css = get_brand_css(w, h, emotion=emotion)
     title_html, idx = wrap_words(title.replace('\\n', '<br>'), 0)
-    body, idx = wrap_words(body, idx)
+    if not title.strip().endswith(('.', '?', '!', '...')):
+        title_html += '<span class="word" style="display:none;">.</span>'
+        idx += 1
+    body_html, idx = wrap_words(body, idx)
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-reflection">{html_bg(bg_b64)}
   <div class="brand entrance" style="margin-bottom:28px;">{tag}</div>
   <div class="rtitle gold-text">{title_html}</div>
   <div class="svg-divider entrance"><svg width="60" height="8" viewBox="0 0 60 8" fill="none"><path d="M0 4L30 0L60 4L30 8L0 4Z" fill="var(--gold)"/></svg></div>
-  <div class="rbody">{body}</div>
+  <div class="rbody">{body_html}</div>
   {html_brand_footer()}
 </div></body></html>"""
 
@@ -1629,20 +1650,25 @@ with tab_engine:
                         else:
                             with st.status("Forging Reel Video...", expanded=True) as pub_status:
                                 try:
-                                    # We construct the text to read
-                                    text_to_read = ""
-                                    if final.get("template_type") == "Quote Card":
-                                        text_to_read = final.get("quote_text", "")
-                                    elif final.get("template_type") == "Carousel Slide":
-                                        s = slides[idx] if 'slides' in locals() else {}
-                                        sl = s if isinstance(s, dict) else (s.__dict__ if hasattr(s, '__dict__') else {})
-                                        text_to_read = f"{sl.get('title', '')} {sl.get('body', '')}"
-                                    elif final.get("template_type") == "Character Spotlight":
-                                        text_to_read = f"{final.get('char_name', '')}. {final.get('char_title', '')}. {final.get('char_quote', '')}"
-                                    elif final.get("template_type") == "Reflection Post":
-                                        text_to_read = f"{final.get('reflection_title', '')}. {final.get('reflection_body', '')}"
-                                    else:
-                                        text_to_read = "The Mahabharata Mindset"
+                                    from bs4 import BeautifulSoup
+                                    soup = BeautifulSoup(html, 'html.parser')
+                                    spoken_words = [span.text for span in soup.find_all('span', class_='word')]
+                                    text_to_read = " ".join(spoken_words)
+                                    
+                                    # Fallback if there are no spans (e.g. Series Cover)
+                                    if not text_to_read.strip():
+                                        if final.get("template_type") == "Quote Card":
+                                            text_to_read = final.get("quote_text", "")
+                                        elif final.get("template_type") == "Carousel Slide":
+                                            s = slides[idx] if 'slides' in locals() else {}
+                                            sl = s if isinstance(s, dict) else (s.__dict__ if hasattr(s, '__dict__') else {})
+                                            text_to_read = f"{sl.get('title', '')} {sl.get('body', '')}"
+                                        elif final.get("template_type") == "Character Spotlight":
+                                            text_to_read = f"{final.get('char_name', '')}. {final.get('char_title', '')}. {final.get('char_quote', '')}"
+                                        elif final.get("template_type") == "Reflection Post":
+                                            text_to_read = f"{final.get('reflection_title', '')}. {final.get('reflection_body', '')}"
+                                        else:
+                                            text_to_read = "The Mahabharata Mindset"
                                         
                                     st.write(f"🎙️ Requesting Voiceover: *{text_to_read}*")
                                     voice_id = st.session_state.get("sidebar_elevenlabs_voice_id", "RXZGC6H41rpnXBWuHTQD")
