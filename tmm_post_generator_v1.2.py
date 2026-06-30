@@ -36,18 +36,18 @@ st.set_page_config(
 # ── Agent 1: Brand Strategist ──
 
 class ReelScriptStructure(BaseModel):
-    hook_concept: str = Field(description="0-3s Hook concept (Pattern interrupt / bold claim). Just the concept, not the final text.")
-    context_concept: str = Field(description="3-5s Context concept. Why it matters.")
-    value_concept: str = Field(description="5-20s Value concept. The core lesson.")
-    payoff_concept: str = Field(description="The payoff/aha moment.")
-    cta_concept: str = Field(description="Call to action concept.")
+    hook_concept: str = Field(description="0-2.5s Hook concept (Pattern interrupt that opens a loop).")
+    setup_concept: str = Field(description="2.5-6s Setup concept (The stakes / situation).")
+    turn_concept: str = Field(description="6-10s Turn concept (The unexpected mechanism).")
+    payoff_concept: str = Field(description="10-14s Payoff concept (The modern-life translation).")
+    cta_concept: str = Field(description="14-17s CTA/Loop concept (Question to viewer or loop back).")
 
 class StrategistBrief(BaseModel):
     epic_character: str = Field(description="The Mahabharata figure to anchor the post. Examples: Karna, Abhimanyu, Ghatotkach, Draupadi, Bhishma, Vidura, Krishna, Arjuna, Eklavya, Yudhishthira, Duryodhana, Shakuni")
     story_moment: str = Field(description="The specific story beat from the epic. Be precise — name the scene, the characters present, the stakes. Example: 'Karna gives away his kavach-kundal to Indra in disguise, knowing it will cost him his life in battle'")
     modern_parallel: str = Field(description="The modern struggle this maps to. Be visceral and specific, not abstract. Example: 'Giving everything to a job that will never promote you'")
     emotional_core: str = Field(description="One word — the dominant feeling the post must evoke. Examples: betrayal, defiance, sacrifice, isolation, duty, rage, stillness")
-    recommended_template: str = Field(description="Must be exactly one of: 'Quote Card', 'Carousel Slide', 'Character Spotlight', 'Reflection Post', 'List / Tips', 'Series Cover'")
+    recommended_template: str = Field(description="Must be exactly one of: 'Quote Card', 'Carousel Slide', 'Character Spotlight', 'Reflection Post', 'List / Tips', 'Series Cover', 'Video Reel'")
     recommended_format: str = Field(description="Must be exactly one of: '1:1 Feed Post', '9:16 Reel'")
     strategic_rationale: str = Field(description="2-3 sentences explaining why this character, this moment, and this template are the highest-leverage combination for the user's input.")
     reel_script_structure: Optional[ReelScriptStructure] = Field(None, description="If recommended_format is '9:16 Reel', provide the high-retention structural blueprint here. Do NOT write the final copy, just the structural concepts.")
@@ -94,6 +94,14 @@ class CopywriterOutput(BaseModel):
     cover_title: Optional[str] = Field(None, description="Big title. Use linebreaks.")
     cover_subtitle: Optional[str] = Field(None, description="Subtitle hook")
 
+    # Video Reel
+    reel_tag: Optional[str] = Field(None, description="Kicker tag (e.g. ANCIENT LESSON · MODERN LIFE)")
+    reel_hook: Optional[str] = Field(None, description="Headline. <=6 words. States a contradiction.")
+    reel_setup: Optional[str] = Field(None, description="The stakes / the situation. Fast.")
+    reel_turn: Optional[str] = Field(None, description="The unexpected move — the mechanism of the lesson.")
+    reel_payoff: Optional[str] = Field(None, description="The modern-life translation. The save-worthy line.")
+    reel_cta: Optional[str] = Field(None, description="Question back to viewer + handle.")
+
 # ── Agent 3: Adversarial Editor ──
 class EditorOutput(BaseModel):
     approved: bool = Field(description="True if the copy passed all filters without changes. False if rewrites were needed.")
@@ -120,6 +128,12 @@ class EditorOutput(BaseModel):
     cover_number: Optional[int] = None
     cover_title: Optional[str] = None
     cover_subtitle: Optional[str] = None
+    reel_tag: Optional[str] = None
+    reel_hook: Optional[str] = None
+    reel_setup: Optional[str] = None
+    reel_turn: Optional[str] = None
+    reel_payoff: Optional[str] = None
+    reel_cta: Optional[str] = None
 
 # ── Agent 4: Caption & Hashtag Writer ──
 class CaptionOutput(BaseModel):
@@ -154,10 +168,11 @@ RULES:
    - Reflection Post: For single-image gut-punch posts with minimal text
    - List / Tips: For tactical, numbered breakdowns
    - Series Cover: For launching multi-part content series
+   - Video Reel: For high-retention 9:16 vertical video narratives
 5. Choose the format:
    - '1:1 Feed Post' for Quote Cards, Carousels, Lists
-   - '9:16 Reel' for Character Spotlights and Reflection Posts that benefit from vertical drama
-6. If recommended_format is '9:16 Reel', you MUST provide a 'reel_script_structure' using the proven 5-part architecture (Hook -> Context -> Value -> Payoff -> CTA). Provide the concepts and flow, not the final exact copy.
+   - '9:16 Reel' for Video Reels
+6. If recommended_format is '9:16 Reel', you MUST use the 'Video Reel' template and provide a 'reel_script_structure' using the exact 5-part architecture (Hook -> Setup -> Turn -> Payoff -> CTA). Provide the concepts and flow, not the exact copy.
 7. Explicitly define the 'viral_mechanism' for the post: optimize for 'Saves' (tactical lessons/frameworks) or 'Shares' (visceral emotional truths).
 
 Think like a war council strategist. Every post is a weapon — choose the sharpest one."""
@@ -193,6 +208,14 @@ YOUR VOICE RULES — THESE ARE NON-NEGOTIABLE:
 7. Sanskrit transliterations MUST use proper diacritical marks: ā, ī, ū, ṛ, ṣ, ṭ, ṇ, ñ, ś
 
 8. Carousel covers (slide 1) have a big title and EMPTY body text.
+
+9. VIDEO REEL ARCHITECTURE (If format is Video Reel): You MUST output 5 precise fields:
+   - reel_hook: <=6 words. States a contradiction or pattern interrupt. NEVER resolves the story.
+   - reel_setup: The stakes/situation.
+   - reel_turn: The unexpected mechanism/twist.
+   - reel_payoff: The modern-life translation. This MUST resolve the hook's contradiction. The hook and payoff MUST share a keyword or thematic parallel.
+   - reel_cta: A question to the viewer + the handle (@TheMahabharataMindset).
+   Total word count across all 5 beats must NOT exceed 45 words.
 
 9. BANNED WORDS: delve, testament, tapestry, crucial, journey, landscape, navigate, unlock, empower, leverage, "In today's fast-paced world", "In the annals of", "stands as a"
 
@@ -271,6 +294,8 @@ You run FIVE merciless filters:
 5. THE SHAREABILITY CHECK: If the Viral Mechanism is 'Shares', ask: 'Would a high-performing professional send this to their colleague in silence to make a point?' If no, rewrite it.
 
 6. THE PROPER-NOUN GUARDIAN: Every character name MUST match the canonical Mahabharata roster exactly. The ONLY valid spellings are: Karna, Arjuna, Draupadi, Krishna, Bhishma, Duryodhana, Yudhishthira, Bhima, Nakula, Sahadeva, Abhimanyu, Ghatotkach, Drona, Vidura, Kunti, Gandhari, Dhritarashtra, Pandu, Shakuni, Eklavya, Parashurama, Ashwatthama, Shikhandi, Barbarik, Subhadra, Uttara, Virata, Satyaki, Kritavarma, Shalya, Jayadratha, Dushasana, Shakuntala, Amba, Hidimba. If ANY name is misspelled (e.g. "Drapaupad", "Karan", "Dropadi"), IMMEDIATELY correct it using the canonical spelling and set approved=false. This is NON-NEGOTIABLE — the voiceover engine will mispronounce garbled names.
+
+7. THE LOOP CHECK (For Video Reels): Check the reel_hook. Does the hook give away the payoff? Does it resolve the story? If YES, reject and rewrite it. The hook may ONLY pose the tension or state a contradiction. Check the word count: reel_hook MUST be <= 6 words. Total word count across all 5 beats MUST be <= 45 words.
 
 COMPARISON BENCHMARK — the copy must feel like it belongs alongside these:
 - "Everything he had. Everything he was. Still not enough."
@@ -673,7 +698,7 @@ You must NOT change, add, remove, reorder, or respell a SINGLE spoken word. The 
 ═══ V3 AUDIO TAG VOCABULARY (use only these) ═══
 Emotion:   [solemn] [grave] [sorrowful] [defiant] [furious] [reverent] [bitter] [resolute] [whispering] [intense] [contemplative]
 Delivery:  [slowly] [softly] [building] [emphatic] [measured]
-DO NOT USE [pause].
+[pause] (a deliberate beat of silence)
 
 Use tags SPARINGLY — at most one tag per sentence. Over-tagging makes the voice unstable and fake.
 
@@ -686,9 +711,9 @@ Never let the performance contradict the emotional_core.
 
 ═══ EXAMPLE (annotate, do not rewrite) ═══
 INPUT  (emotional_core: betrayal):
-  "He was denied entry — for his birth, not his skill. The greatest archer of his generation was told the school wasn't for him."
+  "Bhishma was unkillable. So Krishna stopped trying to kill him. His vow made him the greatest warrior alive. It also made him perfectly predictable."
 OUTPUT:
-  "[grave] He was denied entry — for his birth, [pause] not his skill. [bitter] The greatest archer of his generation [pause] was told the school wasn't for him."
+  "[grave] Bhishma was unkillable. So Krishna stopped trying to kill him. [pause] [bitter] His vow made him the greatest warrior alive. It also made him perfectly predictable."
 
 Direct the performance. Then stay silent."""
 
@@ -973,7 +998,13 @@ def wrap_words(text, start_idx=0):
                 wrapped.append(w) # pure punctuation like em-dashes, no span
     return " ".join(wrapped), idx
 
-def get_video_frames(html_content, words_data, w=1080, h=1920, audio_duration=0.0):
+def count_speakable_words(text):
+    if not text:
+        return 0
+    words = text.replace('<br>', ' <br> ').split()
+    return sum(1 for w in words if ''.join(c for c in w if c.isalnum()))
+
+def get_video_frames(html_content, words_data, w=1080, h=1920, audio_duration=0.0, offset=0):
     """Uses Playwright to snapshot JS-driven cinematic frames.
     
     Generates:
@@ -999,14 +1030,9 @@ def get_video_frames(html_content, words_data, w=1080, h=1920, audio_duration=0.
         import time
         time.sleep(1.5)
         
-        # We need to map frame_idx to real time.
-        # At frame_idx 0, t = -0.5 (start of intro)
-        # At frame_idx (0.5 * fps), t = 0.0 (audio starts)
-        
         for f in range(total_frames):
             t = (f / fps) - INTRO_DURATION
-            # We call renderFrame with exact time t and audio_duration
-            page.evaluate(f"renderFrame({t}, '{words_data_json}', {audio_duration})")
+            page.evaluate(f"renderFrame({t}, '{words_data_json}', {audio_duration}, {offset})")
             frames.append(page.screenshot(type="jpeg", quality=90))
             
         browser.close()
@@ -1176,13 +1202,13 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 def html_brand_js():
     return """<script>
     /* Phase 7: Frame-by-Frame Continuous Rendering Engine */
-    function renderFrame(t, wordsDataStr, totalDuration) {
+    function renderFrame(t, wordsDataStr, totalDuration, offset=0) {
         var words = document.querySelectorAll('.word');
         var wordsData = JSON.parse(wordsDataStr);
         
         words.forEach(function(e, i) {
-            if (!wordsData[i]) return;
-            var w = wordsData[i];
+            if (!wordsData[i + offset]) return;
+            var w = wordsData[i + offset];
             
             var opacity = 0;
             var scale = 1.0;
@@ -1234,7 +1260,12 @@ def html_brand_js():
                 e.classList.remove('highlight');
             }
         });
-
+        
+        var pb = document.querySelector('.progress-bar-fill');
+        if (pb && totalDuration > 0) {
+            var pct = Math.min(100, Math.max(0, (t / totalDuration) * 100));
+            pb.style.width = pct + '%';
+        }
 
         /* Ken Burns on background */
         var bg = document.querySelector('.battle-bg');
@@ -1416,6 +1447,40 @@ def generate_reflection(tag, title, body, bg_b64, w=1080, h=1080, emotion="defau
   {html_brand_footer()}
 </div></body></html>"""
 
+def generate_video_reel(tag, hook, setup, turn, payoff, cta, bg_b64, w=1080, h=1920, emotion="default"):
+    css = get_brand_css(w, h, is_reel=True, emotion=emotion)
+    
+    # Hook is completely static, NOT karaoke'd. Just formatted for display.
+    hook_html = hook.replace('\\n', '<br>')
+    
+    body_html = ""
+    idx = 0
+    if setup:
+        setup_html, idx = wrap_words(setup + " ", idx)
+        body_html += setup_html
+    if turn:
+        turn_html, idx = wrap_words(turn + " ", idx)
+        body_html += turn_html
+    if payoff:
+        payoff_html, idx = wrap_words(payoff + " ", idx)
+        body_html += payoff_html
+        
+    cta_html = ""
+    if cta:
+        cta_html, idx = wrap_words(cta, idx)
+        
+    # Inject progress bar div dynamically at the bottom
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
+<div class="card card-reflection">{html_bg(bg_b64)}
+  <div class="brand entrance" style="margin-bottom:28px;">{tag}</div>
+  <div class="rtitle gold-text entrance" style="opacity:1; transform:none;"><span class="hook-text" style="color:var(--cream); text-shadow:0 0 12px var(--gold), 0 0 28px rgba(201,146,42,0.35);">{hook_html}</span></div>
+  <div class="svg-divider entrance"><svg width="60" height="8" viewBox="0 0 60 8" fill="none"><path d="M0 4L30 0L60 4L30 8L0 4Z" fill="var(--gold)"/></svg></div>
+  <div class="rbody entrance" style="margin-bottom: 24px;">{body_html}</div>
+  <div class="rbody entrance" style="font-size: 24px; opacity: 0.8;">{cta_html}</div>
+  {html_brand_footer()}
+  <div class="progress-bar-container"><div class="progress-bar-fill" style="width: 0%;"></div></div>
+</div></body></html>"""
+
 def generate_list_post(tag, title, items, bg_b64, w=1080, h=1080, emotion="default"):
     css = get_brand_css(w, h, emotion=emotion)
     items_html = "".join([f"""<div style="display:flex;gap:22px;margin-bottom:20px;z-index:2;position:relative;"><span class="stitle gold-text" style="font-size:28px;min-width:35px;">{i}</span><span style="font-family:'EB Garamond';font-size:24px;color:var(--text);line-height:1.6;">{item}</span></div>""" for i, item in enumerate(items, 1)])
@@ -1458,6 +1523,8 @@ def render_from_final(data, bg_b64, card_w, card_h, emotion="default"):
         return generate_list_post(data.get("list_tag") or "", data.get("list_title") or "", data.get("list_items") or [], bg_b64, card_w, card_h, emotion=emotion)
     elif t_type == "Series Cover":
         return generate_series_cover(data.get("cover_label") or "", data.get("cover_number") or 1, data.get("cover_title") or "", data.get("cover_subtitle") or "", bg_b64, card_w, card_h, emotion=emotion)
+    elif t_type == "Video Reel":
+        return generate_video_reel(data.get("reel_tag") or "", data.get("reel_hook") or "", data.get("reel_setup") or "", data.get("reel_turn") or "", data.get("reel_payoff") or "", data.get("reel_cta") or "", bg_b64, card_w, card_h, emotion=emotion)
     return None
 
 
@@ -1789,8 +1856,10 @@ with tab_engine:
                                 try:
                                     from bs4 import BeautifulSoup
                                     soup = BeautifulSoup(html, 'html.parser')
+                                    hook_words_raw = [span.text for span in soup.find_all('span', class_='hook-text')]
                                     spoken_words = [span.text for span in soup.find_all('span', class_='word')]
-                                    text_to_read = " ".join(spoken_words)
+                                    text_to_read = " ".join(hook_words_raw + spoken_words)
+                                    offset = count_speakable_words(" ".join(hook_words_raw))
                                     
                                     # Fallback if there are no spans (e.g. Series Cover)
                                     if not text_to_read.strip():
@@ -1838,7 +1907,7 @@ with tab_engine:
                                     os.remove(temp_audio)
                                     
                                     st.write(f"🖼️ Rendering continuous 30fps frames (duration: {audio_duration}s)...")
-                                    frames_bytes = get_video_frames(html, words_data, render_w, render_h, audio_duration=audio_duration)
+                                    frames_bytes = get_video_frames(html, words_data, render_w, render_h, audio_duration=audio_duration, offset=offset)
                                     
                                     st.write("🎞️ Assembling Reel via MoviePy...")
                                     temp_video_path = f"tmm_reel_{int(time.time())}.mp4"
