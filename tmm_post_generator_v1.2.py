@@ -129,7 +129,7 @@ class CaptionOutput(BaseModel):
 
 class VoiceDirectionOutput(BaseModel):
     tagged_script: str = Field(description="The exact approved words, unchanged, with v3 [tags] and [pause] inserted. Removing all [bracketed] tokens must reproduce the original words verbatim.")
-    base_stability: float = Field(description="ElevenLabs stability 0.0-1.0 for the whole clip. Lower = more emotional (0.25-0.35 for rage/grief, 0.5-0.6 for stillness).")
+    base_stability: float = Field(description="ElevenLabs stability 0.0-1.0 for the whole clip. MUST BE >= 0.4. Lower = more emotional (0.4-0.45 for rage/grief, 0.5-0.6 for stillness).")
     base_style: float = Field(description="ElevenLabs style exaggeration 0.0-1.0. Higher = more dramatic delivery.")
     direction_notes: str = Field(description="One sentence on the intended performance arc, for the log.")
 
@@ -665,7 +665,7 @@ You receive an already-approved narration script (a title + body, fixed and fina
 You must NOT change, add, remove, reorder, or respell a SINGLE spoken word. The words you return, with all [bracketed tags] deleted, must be byte-for-byte identical to the words you were given. The on-screen text is locked to these exact words — if you alter them, the video breaks. You may ONLY insert [tags] between words or at the start of a line.
 
 ═══ RETENTION MODEL — perform to this arc ═══
-1. MOMENTUM IS KING: Instagram retention drops to zero during dead air. You are explicitly FORBIDDEN from using the [pause] tag. The delivery must be rapid, continuous, and gripping.
+1. MOMENTUM IS KING: Instagram retention drops to zero during dead air. Pacing is for IG, not cinema. Use AT MOST ONE [pause] in the ENTIRE script. Never stack [pause] tags. Dead air > ~0.5s reads as buffering and viewers swipe. Keep the script moving.
 2. THE HOOK (first line): open with tension, not warmth. Tag for intensity, intrigue, or a hushed confession — something that makes a thumb stop. Never open flat.
 3. THE ESCALATION (middle): vary the delivery line-to-line. Alternate quiet and forceful.
 4. THE PAYOFF (final line): slow down. Lower the energy or sharpen it to a point. The last line should feel like a verdict, delivered with weight.
@@ -724,6 +724,10 @@ def generate_voice_direction(api_key: str, script: str, emotion: str) -> VoiceDi
         print(f"WARNING: Voice Director altered word count! (Expected {original_words}, got {returned_words}). Triggering safety fallback to original script.")
         data['tagged_script'] = script
         data['direction_notes'] = "FALLBACK TRIGGERED: LLM altered script length. " + data.get('direction_notes', '')
+        
+    # DETERMINISTIC PACING CAP: Cap [pause] tags to maximum 1
+    parts = data['tagged_script'].split('[pause]')
+    data['tagged_script'] = parts[0] + ('[pause]' + ''.join(parts[1:]) if len(parts) > 1 else '')
         
     return VoiceDirectionOutput(**data)
 # ═══════════════════════════════════════════════════════════════
@@ -1041,11 +1045,11 @@ def get_brand_css(w, h, is_reel=False, emotion="default"):
     # Auto-detect reel from aspect ratio (9:16 = h > w * 1.5)
     is_reel = is_reel or (h > w * 1.4)
     
-    pad_quote = "200px 80px" if is_reel else "80px"
-    pad_slide = "180px 80px 200px 80px" if is_reel else "60px 50px 100px 50px"
-    pad_reflect = "200px 80px 180px 80px" if is_reel else "70px"
-    pad_list = "180px 80px" if is_reel else "70px"
-    pad_cover = "200px 80px" if is_reel else "80px 70px"
+    pad_quote = "0 80px" if is_reel else "80px"
+    pad_slide = "0 80px" if is_reel else "60px 50px 100px 50px"
+    pad_reflect = "0 80px" if is_reel else "70px"
+    pad_list = "0 80px" if is_reel else "70px"
+    pad_cover = "0 80px" if is_reel else "80px 70px"
     qs_mt = "52px" if is_reel else "28px"
     corner_size = "120px" if is_reel else "80px"
     corner_inset = "52px" if is_reel else "32px"
@@ -1053,6 +1057,8 @@ def get_brand_css(w, h, is_reel=False, emotion="default"):
     reflect_title_render = "72px" if is_reel else "var(--title-size)"
     reflect_body_size = "40px" if is_reel else "28px"
     reflect_bottom_pad = "180px" if is_reel else "70px"
+    
+    justify_slide = "center" if is_reel else "space-between"
     
     # Reel-specific overrides for other card types
     quote_font_size = "38px" if is_reel else "28px"
@@ -1135,7 +1141,7 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 .card-quote .qt {{ font-size: {quote_font_size}; line-height: 1.75; letter-spacing: .5px; margin-bottom: {qs_mt}; }}
 .card-quote .qs {{ font-family: 'EB Garamond', serif; font-size: {quote_source_size}; font-style: italic; color: var(--gold); opacity: .85; z-index: 2; }}
 
-.card-slide {{ background: var(--deep); display: flex; flex-direction: column; justify-content: space-between; padding: var(--pad-slide); }}
+.card-slide {{ background: var(--deep); display: flex; flex-direction: column; justify-content: {justify_slide}; padding: var(--pad-slide); }}
 .card-slide .snum {{ position: absolute; right: 50px; top: 30px; font-size: 140px; color: var(--gold); opacity: 0.1; line-height: 1; pointer-events: none; font-family: 'Cinzel Decorative', serif; font-weight: 900; }}
 .card-slide .stitle {{ font-size: {slide_title_size}; line-height: 1.35; max-height: 350px; overflow: hidden; }}
 .card-slide .sbody {{ font-size: {slide_body_size}; line-height: 1.8; color: var(--text); opacity: 0.9; margin-top: 24px; z-index: 2; position: relative; }}
@@ -1159,7 +1165,7 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 .word {{ display: inline-block; opacity: 0; }}
 .gold-text .word {{ background: inherit; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
 .word.revealed {{ opacity: 1; }}
-.word.highlight {{ opacity: 1; color: var(--gold3); -webkit-text-fill-color: var(--gold3); text-shadow: 0 0 4px var(--gold); }}
+.word.highlight {{ opacity: 1; color: var(--cream); -webkit-text-fill-color: var(--cream); text-shadow: 0 0 12px var(--gold), 0 0 28px rgba(201,146,42,0.35); }}
 
 /* Entrance classes for reel motion */
 .entrance {{ opacity: 0; transform: translateY(20px); }}
