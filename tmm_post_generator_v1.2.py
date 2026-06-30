@@ -51,6 +51,7 @@ class StrategistBrief(BaseModel):
     recommended_format: str = Field(description="Must be exactly one of: '1:1 Feed Post', '9:16 Reel'")
     strategic_rationale: str = Field(description="2-3 sentences explaining why this character, this moment, and this template are the highest-leverage combination for the user's input.")
     reel_script_structure: Optional[ReelScriptStructure] = Field(None, description="If recommended_format is '9:16 Reel', provide the high-retention structural blueprint here. Do NOT write the final copy, just the structural concepts.")
+    viral_mechanism: str = Field(description="Must be exactly 'Saves' or 'Shares'. Choose 'Saves' for tactical/educational value. Choose 'Shares' for relatable, hard-hitting emotional truths.")
 
 # ── Agent 2: Dharmic Copywriter (per-template outputs) ──
 class CarouselSlideItem(BaseModel):
@@ -157,6 +158,7 @@ RULES:
    - '1:1 Feed Post' for Quote Cards, Carousels, Lists
    - '9:16 Reel' for Character Spotlights and Reflection Posts that benefit from vertical drama
 6. If recommended_format is '9:16 Reel', you MUST provide a 'reel_script_structure' using the proven 5-part architecture (Hook -> Context -> Value -> Payoff -> CTA). Provide the concepts and flow, not the final exact copy.
+7. Explicitly define the 'viral_mechanism' for the post: optimize for 'Saves' (tactical lessons/frameworks) or 'Shares' (visceral emotional truths).
 
 Think like a war council strategist. Every post is a weapon — choose the sharpest one."""
 
@@ -256,7 +258,7 @@ You run FIVE merciless filters:
 
 1. THE ARJUNA TEST: If Lord Krishna said this to Arjuna on the battlefield of Kurukshetra, would Arjuna string his Gandiva and charge — or would he scroll past? If it sounds like a generic LinkedIn "hustle bro" post or a corporate motivational poster, REWRITE IT.
 
-2. THE BUZZWORD PURGE: Hard-reject ANY occurrence of: "In today's fast-paced world", "delve", "testament", "tapestry", "crucial", "journey", "landscape", "navigate", "unlock", "empower", "leverage", "In the annals of", "stands as a", "resonates", "pivotal". If found, rewrite the offending text.
+2. THE BUZZWORD PURGE: Hard-reject ANY occurrence of: "In today's fast-paced world", "delve", "testament", "tapestry", "crucial", "journey", "landscape", "navigate", "unlock", "empower", "leverage", "In the annals of", "stands as a", "resonates", "pivotal", "toxic", "narcissist", "manifest", "vibe", "hustle". If found, rewrite the offending text.
 
 3. THE CADENCE CHECK: Read every title aloud. Does it land with the weight of a war drum? Or does it sound like a blog headline? Titles must use fragment stacking, em-dashes, and period-separated staccato. If a title is a complete grammatical sentence, it's probably wrong.
 
@@ -265,7 +267,9 @@ You run FIVE merciless filters:
    - Character quotes: 3 sentences maximum. Must be cinematic scene-setting, not generic praise.
    - Carousel cover (slide 1) body MUST be empty string.
 
-5. THE PROPER-NOUN GUARDIAN: Every character name MUST match the canonical Mahabharata roster exactly. The ONLY valid spellings are: Karna, Arjuna, Draupadi, Krishna, Bhishma, Duryodhana, Yudhishthira, Bhima, Nakula, Sahadeva, Abhimanyu, Ghatotkach, Drona, Vidura, Kunti, Gandhari, Dhritarashtra, Pandu, Shakuni, Eklavya, Parashurama, Ashwatthama, Shikhandi, Barbarik, Subhadra, Uttara, Virata, Satyaki, Kritavarma, Shalya, Jayadratha, Dushasana, Shakuntala, Amba, Hidimba. If ANY name is misspelled (e.g. "Drapaupad", "Karan", "Dropadi"), IMMEDIATELY correct it using the canonical spelling and set approved=false. This is NON-NEGOTIABLE — the voiceover engine will mispronounce garbled names.
+5. THE SHAREABILITY CHECK: If the Viral Mechanism is 'Shares', ask: 'Would a high-performing professional send this to their colleague in silence to make a point?' If no, rewrite it.
+
+6. THE PROPER-NOUN GUARDIAN: Every character name MUST match the canonical Mahabharata roster exactly. The ONLY valid spellings are: Karna, Arjuna, Draupadi, Krishna, Bhishma, Duryodhana, Yudhishthira, Bhima, Nakula, Sahadeva, Abhimanyu, Ghatotkach, Drona, Vidura, Kunti, Gandhari, Dhritarashtra, Pandu, Shakuni, Eklavya, Parashurama, Ashwatthama, Shikhandi, Barbarik, Subhadra, Uttara, Virata, Satyaki, Kritavarma, Shalya, Jayadratha, Dushasana, Shakuntala, Amba, Hidimba. If ANY name is misspelled (e.g. "Drapaupad", "Karan", "Dropadi"), IMMEDIATELY correct it using the canonical spelling and set approved=false. This is NON-NEGOTIABLE — the voiceover engine will mispronounce garbled names.
 
 COMPARISON BENCHMARK — the copy must feel like it belongs alongside these:
 - "Everything he had. Everything he was. Still not enough."
@@ -273,17 +277,17 @@ COMPARISON BENCHMARK — the copy must feel like it belongs alongside these:
 - "Seven of the greatest warriors surrounded him. He was sixteen."
 - "Every institution failed him — his teachers, his family, his kingdom."
 
-If the draft passes all 5 filters, set approved=true and return it unchanged.
+If the draft passes all 6 filters, set approved=true and return it unchanged.
 If any filter fails, set approved=false, rewrite the offending fields, and explain what you changed in audit_log."""
 
 CAPTION_SYSTEM_PROMPT = """You are the Caption & Hashtag Writer for 'The Mahabharata Mindset'.
 Your job is to write the Instagram caption for the post that the Editor just approved.
 
 RULES FOR THE CAPTION:
-1. HOOK: The first line must grab attention and mirror the post's title energy.
+1. HOOK: The first line must grab attention, mirror the post's title energy, and contain highly-searched SEO keywords (e.g. 'Stoicism', 'Ancient Wisdom', 'Discipline').
 2. STORY: 2-4 short paragraphs maximum. Explain the modern parallel and the ancient lesson.
 3. TONE: Solemn, resolute, stoic. No emojis except maybe one at the very end (e.g. ⚔️, 🏹).
-4. CTA: End with a call to action (e.g., "Follow @TheMahabharataMindset for daily epic wisdom." or "Save this for when you need to remember.")
+4. CTA: Look at the Strategist's 'viral_mechanism'. If Saves, write a CTA like 'Save this to your archives.' If Shares, write a CTA like 'Send this to the one person who needs to hear it.' Do not ask for comments.
 5. HASHTAGS: Provide 15-25 hashtags. 
    - MUST INCLUDE: #TheMahabharataMindset #Mahabharata #Dharma #AncientWisdom #Stoicism
    - BANNED HASHTAGS: #GrindDontStop, #BossBabe, #HustleHarder, #MotivationDaily
@@ -427,7 +431,7 @@ def run_editor(client, draft: dict, brief: dict) -> dict:
         f"- Story Moment: {brief['story_moment']}\n"
         f"- Emotional Core: {brief['emotional_core']}\n\n"
         f"COPYWRITER DRAFT:\n{json.dumps(draft, indent=2)}\n\n"
-        f"Review this draft against all 4 filters. Return the final publication-ready version."
+        f"Review this draft against all 6 filters. Return the final publication-ready version."
     )
     response = client.models.generate_content(
         model='gemini-2.5-flash',
@@ -448,7 +452,8 @@ def run_caption_writer(client, final_post: dict, brief: dict) -> dict:
         f"STRATEGIST BRIEF:\n"
         f"- Epic Character: {brief.get('epic_character', 'N/A')}\n"
         f"- Story Moment: {brief.get('story_moment', 'N/A')}\n"
-        f"- Emotional Core: {brief.get('emotional_core', 'N/A')}\n\n"
+        f"- Emotional Core: {brief.get('emotional_core', 'N/A')}\n"
+        f"- Viral Mechanism: {brief.get('viral_mechanism', 'N/A')}\n\n"
         f"FINAL APPROVED POST CONTENT:\n{json.dumps(final_post, indent=2)}\n\n"
         f"Write the Instagram caption, provide 15-25 hashtags, and a simple alt_text description of the post."
     )
