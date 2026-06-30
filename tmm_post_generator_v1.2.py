@@ -679,7 +679,7 @@ def generate_voice_direction(api_key: str, script: str, emotion: str) -> VoiceDi
     prompt = f"emotional_core: {emotion}\n\nSCRIPT:\n{script}"
     
     response = client.models.generate_content(
-        model="gemini-1.5-pro",
+        model="gemini-2.5-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
             system_instruction=VOICE_DIRECTOR_SYSTEM_PROMPT,
