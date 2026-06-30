@@ -692,8 +692,22 @@ def generate_voice_direction(api_key: str, script: str, emotion: str) -> VoiceDi
     if not response.text:
         raise ValueError("Empty response from Voice Director agent.")
     data = json.loads(response.text)
+    
+    # SAFETY FALLBACK: The Voice Director MUST NOT alter the word count.
+    # If the LLM hallucinates and drops a word (e.g. the first name), the kinetic timeline will desync.
+    import re
+    clean_tagged = re.sub(r'\[.*?\]', '', data.get('tagged_script', '')).strip()
+    
+    # We compare word counts (rough but effective heuristic for dropped words)
+    original_words = len(script.split())
+    returned_words = len(clean_tagged.split())
+    
+    if original_words != returned_words:
+        print(f"⚠️ Voice Director altered word count! (Expected {original_words}, got {returned_words}). Triggering safety fallback to original script.")
+        data['tagged_script'] = script
+        data['direction_notes'] = "FALLBACK TRIGGERED: LLM altered script length. " + data.get('direction_notes', '')
+        
     return VoiceDirectionOutput(**data)
-
 # ═══════════════════════════════════════════════════════════════
 # SECTION 2D: AI VIDEO ENGINE (ELEVENLABS + MOVIEPY)
 # ═══════════════════════════════════════════════════════════════
