@@ -751,9 +751,12 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     video = concatenate_videoclips(clips, method="compose")
     audio = AudioFileClip(temp_audio)
     
-    # The video is INTRO_DURATION longer than the audio.
-    # Offset audio to start after the intro entrance.
-    total_needed = INTRO_DURATION + audio.duration
+    # The video is INTRO_DURATION longer than the audio inherently.
+    # We add a TEXT_LEAD_TIME so the text highlights BEFORE the voice speaks (like movie subtitles).
+    TEXT_LEAD_TIME = 0.15  # 150ms visual lead
+    AUDIO_OFFSET = INTRO_DURATION + TEXT_LEAD_TIME
+    
+    total_needed = AUDIO_OFFSET + audio.duration
     if total_needed > video.duration:
         fd_img, t_img = tempfile.mkstemp(suffix=".png")
         with open(t_img, "wb") as f: f.write(frames_bytes[-1])
@@ -770,10 +773,10 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
             return np.zeros((len(t), 2))
         return np.array([0.0, 0.0])
         
-    silence = AudioClip(make_silence, duration=INTRO_DURATION, fps=44100)
+    silence = AudioClip(make_silence, duration=AUDIO_OFFSET, fps=44100)
     
     # We must ensure audio handles correctly
-    offset_audio = CompositeAudioClip([silence, audio.with_start(INTRO_DURATION)])
+    offset_audio = CompositeAudioClip([silence, audio.with_start(AUDIO_OFFSET)])
     video = video.with_audio(offset_audio)
     video.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac", ffmpeg_params=["-crf", "18", "-pix_fmt", "yuv420p", "-preset", "slow"])
     
