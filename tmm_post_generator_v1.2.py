@@ -1138,14 +1138,14 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 .card-reflection .svg-divider {{ margin: 36px 0; }}
 
 /* KINETIC TYPOGRAPHY ANIMATION (Phase 5 — cinematic motion) */
-.word {{ display: inline-block; opacity: 0; transition: color 0.15s ease, text-shadow 0.15s ease, opacity 0.12s ease; }}
+.word {{ display: inline-block; opacity: 0; }}
 .word.revealed {{ opacity: 1; }}
 .word.highlight {{ opacity: 1; color: var(--gold3); text-shadow: 0 0 18px var(--gold), 0 0 40px rgba(201,146,42,0.3); }}
 
 /* Entrance classes for reel motion */
-.entrance {{ opacity: 0; transform: translateY(20px); transition: opacity 0.01s, transform 0.01s; }}
+.entrance {{ opacity: 0; transform: translateY(20px); }}
 .entrance.entered {{ opacity: 1; transform: translateY(0); }}
-.battle-bg {{ transition: transform 0.01s linear; }}
+.battle-bg {{ }}
 """
 
 def html_brand_js():
