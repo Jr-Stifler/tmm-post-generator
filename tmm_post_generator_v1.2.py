@@ -675,16 +675,20 @@ OUTPUT:
 Direct the performance. Then stay silent."""
 
 def generate_voice_direction(api_key: str, script: str, emotion: str) -> VoiceDirectionOutput:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-pro",
-                                  system_instruction=VOICE_DIRECTOR_SYSTEM_PROMPT,
-                                  generation_config=genai.GenerationConfig(
-                                      response_mime_type="application/json",
-                                      response_schema=VoiceDirectionOutput,
-                                      temperature=0.2
-                                  ))
+    client = genai.Client(api_key=api_key)
     prompt = f"emotional_core: {emotion}\n\nSCRIPT:\n{script}"
-    response = model.generate_content(prompt)
+    
+    response = client.models.generate_content(
+        model="gemini-1.5-pro",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=VOICE_DIRECTOR_SYSTEM_PROMPT,
+            response_mime_type="application/json",
+            response_schema=VoiceDirectionOutput,
+            temperature=0.2
+        )
+    )
+    
     if not response.text:
         raise ValueError("Empty response from Voice Director agent.")
     data = json.loads(response.text)
