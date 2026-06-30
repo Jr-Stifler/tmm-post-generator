@@ -696,11 +696,20 @@ def group_characters_to_words(alignment):
 
 def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="reel.mp4"):
     """
-    Stitches frames and audio together based on word timestamps.
+    Compiles the reel from audio, word timings, and frame PNGs.
+    
+    Frame layout (from get_video_frames):
+      - frames_bytes[0..11]: 12 intro frames (0.5s entrance animation)
+      - frames_bytes[12..12+N-1]: N word-highlight frames
+      - frames_bytes[12+N]: end frame (all revealed, no highlight)
     """
     from moviepy import ImageClip, concatenate_videoclips, AudioFileClip
     import tempfile
     import os
+    
+    INTRO_FRAMES = 12
+    INTRO_DURATION = 0.5  # seconds
+    FRAME_DUR = INTRO_DURATION / INTRO_FRAMES  # ~0.0417s per intro frame
     
     # Save audio to temp
     fd_a, temp_audio = tempfile.mkstemp(suffix=".mp3")
@@ -710,46 +719,53 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     
     clips = []
     
-    # We have N words, and N+2 frames.
-    # Frame 0: Before first word
-    # Frame 1 to N: Word highlights
-    # Frame N+1: After last word
+    # 1. Intro frames (0.5s total, entrance animation before voiceover)
+    for intro_i in range(INTRO_FRAMES):
+        fd_img, t_img = tempfile.mkstemp(suffix=".png")
+        with open(t_img, "wb") as f: f.write(frames_bytes[intro_i])
+        os.close(fd_img)
+        clips.append(ImageClip(t_img).with_duration(FRAME_DUR))
     
-    # 1. Before first word
-    t_start = 0.0
+    # 2. Pre-first-word gap (if voiceover has silence before first word)
     first_word_start = words_data[0]['start'] if words_data else 0.0
     if first_word_start > 0:
+        # Use the last intro frame (fully entered, no words yet) as the hold
         fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        with open(t_img, "wb") as f: f.write(frames_bytes[0])
+        with open(t_img, "wb") as f: f.write(frames_bytes[INTRO_FRAMES - 1])
         os.close(fd_img)
         clips.append(ImageClip(t_img).with_duration(first_word_start))
         
-    # 2. Words
+    # 3. Word frames
     for i, w in enumerate(words_data):
         dur = w['end'] - w['start']
-        # If there's a gap between words, extend the previous frame or add base frame
         if i < len(words_data) - 1:
             gap = words_data[i+1]['start'] - w['end']
             dur += gap # Keep the word highlighted during gap (looks better)
             
         fd_img, t_img = tempfile.mkstemp(suffix=".png")
-        with open(t_img, "wb") as f: f.write(frames_bytes[i+1])
+        with open(t_img, "wb") as f: f.write(frames_bytes[INTRO_FRAMES + i])
         os.close(fd_img)
         clips.append(ImageClip(t_img).with_duration(dur))
         
-    # 3. Assemble
+    # 4. Assemble
     video = concatenate_videoclips(clips, method="compose")
     audio = AudioFileClip(temp_audio)
     
-    # Match durations (extend last frame if audio is longer)
-    if audio.duration > video.duration:
+    # The video is INTRO_DURATION longer than the audio.
+    # Offset audio to start after the intro entrance.
+    total_needed = INTRO_DURATION + audio.duration
+    if total_needed > video.duration:
         fd_img, t_img = tempfile.mkstemp(suffix=".png")
         with open(t_img, "wb") as f: f.write(frames_bytes[-1])
         os.close(fd_img)
-        last_clip = ImageClip(t_img).with_duration(audio.duration - video.duration)
+        last_clip = ImageClip(t_img).with_duration(total_needed - video.duration)
         video = concatenate_videoclips([video, last_clip], method="compose")
-        
-    video = video.with_audio(audio)
+
+    # Create silent intro + actual audio
+    from moviepy import AudioClip, CompositeAudioClip
+    silence = AudioClip(lambda t: [0, 0], duration=INTRO_DURATION, fps=44100).with_fps(44100)
+    offset_audio = CompositeAudioClip([silence, audio.with_start(INTRO_DURATION)])
+    video = video.with_audio(offset_audio)
     video.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac", ffmpeg_params=["-crf", "18", "-pix_fmt", "yuv420p", "-preset", "slow"])
     
     return output_filename
@@ -869,9 +885,18 @@ def wrap_words(text: str, start_idx=0):
     return " ".join(wrapped), idx
 
 def get_video_frames(html_content, words_data, w=1080, h=1920):
-    """Uses Playwright to quickly snapshot JS-highlighted frames."""
+    """Uses Playwright to snapshot JS-driven cinematic frames.
+    
+    Generates:
+      - 12 intro frames (0.5s at 24fps) for entrance animation
+      - 1 frame per word for karaoke highlight
+      - 1 end frame (all revealed, no highlight)
+    """
     from playwright.sync_api import sync_playwright
     frames = []
+    total_words = len(words_data)
+    INTRO_FRAMES = 12  # 0.5s at 24fps
+    
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(viewport={'width': w, 'height': h})
@@ -881,16 +906,21 @@ def get_video_frames(html_content, words_data, w=1080, h=1920):
         import time
         time.sleep(1.5)
         
-        # Frame 0: Start of audio (no highlight, or first word)
-        page.evaluate("setHighlight(-1)")
-        frames.append(page.screenshot(type="png"))
+        # Intro frames: staggered entrance, no words revealed yet
+        for intro_i in range(INTRO_FRAMES):
+            # Use negative idx so no words are revealed, but entrances fire progressively
+            # Map intro_i to entrance frame range (-INTRO_FRAMES .. -1)
+            entrance_frame = int((intro_i / INTRO_FRAMES) * 6)  # map to entrance trigger range 0-5
+            page.evaluate(f"setFrame({-INTRO_FRAMES + intro_i}, {total_words})")
+            frames.append(page.screenshot(type="png"))
         
-        for i in range(len(words_data)):
-            page.evaluate(f"setHighlight({i})")
+        # Word frames: one per word
+        for i in range(total_words):
+            page.evaluate(f"setFrame({i}, {total_words})")
             frames.append(page.screenshot(type="png"))
             
-        # End frame
-        page.evaluate("setHighlight(-1)")
+        # End frame: all revealed, no highlight
+        page.evaluate(f"setFrame({total_words}, {total_words})")
         frames.append(page.screenshot(type="png"))
         
         browser.close()
@@ -1031,32 +1061,89 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 .card-reflection .rtitle {{ font-size: {reflect_title_render}; margin-bottom: 28px; line-height: 1.15; }}
 .card-reflection .rbody {{ font-size: {reflect_body_size}; line-height: 1.6; color: var(--text); font-weight: 500; position: relative; z-index: 2; }}
 
-/* KINETIC TYPOGRAPHY ANIMATION (Phase 4 basis) */
-.word {{ display: inline-block; transition: color 0.15s ease, text-shadow 0.15s ease; }}
-.word.highlight {{ color: var(--gold3); text-shadow: 0 0 18px var(--gold), 0 0 40px rgba(201,146,42,0.3); }}
+/* KINETIC TYPOGRAPHY ANIMATION (Phase 5 — cinematic motion) */
+.word {{ display: inline-block; opacity: 0; transition: color 0.15s ease, text-shadow 0.15s ease, opacity 0.12s ease; }}
+.word.revealed {{ opacity: 1; }}
+.word.highlight {{ opacity: 1; color: var(--gold3); text-shadow: 0 0 18px var(--gold), 0 0 40px rgba(201,146,42,0.3); }}
+
+/* Entrance classes for reel motion */
+.entrance {{ opacity: 0; transform: translateY(20px); transition: opacity 0.01s, transform 0.01s; }}
+.entrance.entered {{ opacity: 1; transform: translateY(0); }}
+.battle-bg {{ transition: transform 0.01s linear; }}
 """
 
 def html_brand_js():
     return """<script>
+    /* Phase 5: Cinematic frame driver for reel pipeline */
+    function setFrame(idx, totalFrames) {
+        var words = document.querySelectorAll('.word');
+        words.forEach(function(e, i) {
+            if (i <= idx) { e.classList.add('revealed'); } else { e.classList.remove('revealed'); }
+            if (i === idx) { e.classList.add('highlight'); } else { e.classList.remove('highlight'); }
+        });
+
+        /* Ken Burns on background */
+        var bg = document.querySelector('.battle-bg');
+        if (bg && totalFrames > 0) {
+            var p = Math.max(0, idx) / totalFrames;
+            var scale = 1.0 + (p * 0.15);
+            var tx = p * -20;
+            var ty = p * -10;
+            bg.style.transform = 'scale(' + scale + ') translate(' + tx + 'px, ' + ty + 'px)';
+        }
+
+        /* Vignette subtle radial shift for no-bg cards */
+        var vig = document.querySelector('.vignette-overlay');
+        if (vig && totalFrames > 0) {
+            var p2 = Math.max(0, idx) / totalFrames;
+            vig.style.background = 'radial-gradient(circle at ' + (50 + p2 * 5) + '% ' + (50 - p2 * 3) + '%, transparent 30%, var(--black) 100%)';
+        }
+
+        /* Staggered entrance for UI elements */
+        var entrances = [
+            {sel: '.brand', frame: 0},
+            {sel: '.cq-corner.tl', frame: 1},
+            {sel: '.cq-corner.tr', frame: 1},
+            {sel: '.cq-corner.bl', frame: 2},
+            {sel: '.cq-corner.br', frame: 2},
+            {sel: '.svg-divider', frame: 3},
+            {sel: '.brand-footer', frame: 5}
+        ];
+        entrances.forEach(function(e) {
+            var el = document.querySelector(e.sel);
+            if (el) {
+                if (idx >= e.frame) { el.classList.add('entered'); } else { el.classList.remove('entered'); }
+            }
+        });
+    }
+
+    /* Backward compat: old setHighlight still works for static preview */
     function setHighlight(idx) {
-        document.querySelectorAll('.word').forEach(e => e.classList.remove('highlight'));
+        document.querySelectorAll('.word').forEach(function(e) { e.classList.remove('highlight'); });
         if (idx >= 0) {
-            let el = document.getElementById('word-' + idx);
+            var el = document.getElementById('word-' + idx);
             if(el) el.classList.add('highlight');
         }
     }
-    // Phase 2: Auto-fit Title
+
+    /* Auto-fit Title */
     function autoFitTitles() {
-        let titles = document.querySelectorAll('.stitle, .rtitle, .qt');
-        titles.forEach(el => {
-            let fSize = parseInt(window.getComputedStyle(el).fontSize);
+        var titles = document.querySelectorAll('.stitle, .rtitle, .qt');
+        titles.forEach(function(el) {
+            var fSize = parseInt(window.getComputedStyle(el).fontSize);
             while(el.scrollHeight > el.clientHeight && fSize > 12) {
                 fSize -= 1;
                 el.style.fontSize = fSize + 'px';
             }
         });
     }
-    document.addEventListener("DOMContentLoaded", autoFitTitles);
+
+    /* Static path: reveal all words + show all entrances on load */
+    document.addEventListener("DOMContentLoaded", function() {
+        autoFitTitles();
+        document.querySelectorAll('.word').forEach(function(e) { e.classList.add('revealed'); });
+        document.querySelectorAll('.entrance').forEach(function(e) { e.classList.add('entered'); });
+    });
 </script>"""
 
 # HTML HELPERS (Phase 1 & 2 & 3)
@@ -1087,13 +1174,13 @@ def html_svg_defs():
     """
 
 def html_corner_frames():
-    return '<div class="cq-corner tl"></div><div class="cq-corner tr"></div><div class="cq-corner bl"></div><div class="cq-corner br"></div>'
+    return '<div class="cq-corner tl entrance"></div><div class="cq-corner tr entrance"></div><div class="cq-corner bl entrance"></div><div class="cq-corner br entrance"></div>'
 
 def html_brand_footer():
-    return '<div class="brand-footer"><div class="brand">@TheMahabharataMindset</div></div>'
+    return '<div class="brand-footer entrance"><div class="brand">@TheMahabharataMindset</div></div>'
 
 def html_bg(bg_b64):
-    if not bg_b64: return ""
+    if not bg_b64: return '<div class="vignette-overlay"></div>'
     return f"""<div class="battle-bg" style="background-image:url('{bg_b64}');"></div><div class="vignette-overlay"></div>"""
 
 def generate_quote_card(quote_text, source, bg_b64, sanskrit="", w=1080, h=1080, emotion="default"):
@@ -1116,7 +1203,7 @@ def generate_carousel_slide(series_tag, slide_num, total_slides, title, body, bg
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-slide">{html_bg(bg_b64)}
   <div class="snum gold-text">{slide_num_str}</div>
-  <div><div class="brand" style="margin-bottom:12px;">{series_tag}</div><div class="stitle gold-text">{title}</div><div class="sbody">{body}</div></div>
+  <div><div class="brand entrance" style="margin-bottom:12px;">{series_tag}</div><div class="stitle gold-text">{title}</div><div class="sbody">{body}</div></div>
   {html_brand_footer()}
   <div class="progress-bar-container"><div class="progress-bar-fill" style="width: {progress_pct}%;"></div></div>
 </div></body></html>"""
@@ -1129,7 +1216,7 @@ def generate_character_spotlight(name, title, traits_list, quote, bg_b64, w=1080
 <div class="card card-char">{html_bg(bg_b64)}
   <div class="cchar-bg" style="font-size:{ghost_size}px;">{name.upper()}</div>
   <div style="position:relative;z-index:10;max-width:82%;">
-    <div class="brand" style="margin-bottom:12px;">Character Spotlight</div>
+    <div class="brand entrance" style="margin-bottom:12px;">Character Spotlight</div>
     <div class="cchar-name gold-text">{name}</div><div class="stitle" style="font-size:22px;letter-spacing:3px;margin-bottom:35px;">{title}</div>
     <div class="cchar-traits">{traits_html}</div><div class="cchar-quote gold-text">"{quote}"</div>
   </div>
@@ -1141,9 +1228,9 @@ def generate_reflection(tag, title, body, bg_b64, w=1080, h=1080, emotion="defau
     body, idx = wrap_words(body, idx)
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-reflection">{html_bg(bg_b64)}
-  <div class="brand" style="margin-bottom:28px;">{tag}</div>
+  <div class="brand entrance" style="margin-bottom:28px;">{tag}</div>
   <div class="rtitle gold-text">{title_html}</div>
-  <div class="svg-divider"><svg width="60" height="8" viewBox="0 0 60 8" fill="none"><path d="M0 4L30 0L60 4L30 8L0 4Z" fill="var(--gold)"/></svg></div>
+  <div class="svg-divider entrance"><svg width="60" height="8" viewBox="0 0 60 8" fill="none"><path d="M0 4L30 0L60 4L30 8L0 4Z" fill="var(--gold)"/></svg></div>
   <div class="rbody">{body}</div>
   {html_brand_footer()}
 </div></body></html>"""
@@ -1153,7 +1240,7 @@ def generate_list_post(tag, title, items, bg_b64, w=1080, h=1080, emotion="defau
     items_html = "".join([f"""<div style="display:flex;gap:22px;margin-bottom:20px;z-index:2;position:relative;"><span class="stitle gold-text" style="font-size:28px;min-width:35px;">{i}</span><span style="font-family:'EB Garamond';font-size:24px;color:var(--text);line-height:1.6;">{item}</span></div>""" for i, item in enumerate(items, 1)])
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-slide">{html_bg(bg_b64)}
-  <div><div class="brand" style="margin-bottom:16px;">{tag}</div><div class="stitle gold-text" style="font-size:34px;margin-bottom:36px;">{title}</div></div>
+  <div><div class="brand entrance" style="margin-bottom:16px;">{tag}</div><div class="stitle gold-text" style="font-size:34px;margin-bottom:36px;">{title}</div></div>
   <div>{items_html}</div>
   {html_brand_footer()}
 </div></body></html>"""
@@ -1165,7 +1252,7 @@ def generate_series_cover(series_label, number, title, subtitle, bg_b64, w=1080,
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-quote">{html_bg(bg_b64)}
   <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;"><svg width="900" height="900" viewBox="0 0 300 300" fill="none" opacity=".12"><circle cx="150" cy="150" r="140" stroke="var(--gold)" stroke-width="1"/><circle cx="150" cy="150" r="110" stroke="var(--gold)" stroke-width="1"/><circle cx="150" cy="150" r="80" stroke="var(--gold)" stroke-width="1"/></svg></div>
-  <div class="brand" style="border:1px solid rgba(201,146,42,.28);padding:8px 22px;margin-bottom:16px;z-index:2;">{series_label}</div>
+  <div class="brand entrance" style="border:1px solid rgba(201,146,42,.28);padding:8px 22px;margin-bottom:16px;z-index:2;">{series_label}</div>
   <div class="stitle gold-text" style="font-size:160px;line-height:1;margin:16px 0;">{num_str}</div>
   <div class="stitle gold-text" style="font-size:34px;letter-spacing:3px;">{title_html}</div>
   <div style="margin-top:22px;font-family:'EB Garamond';font-size:22px;font-style:italic;color:rgba(242,232,208,.38);z-index:2;position:relative;">{subtitle}</div>
