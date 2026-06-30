@@ -703,7 +703,7 @@ def generate_voice_direction(api_key: str, script: str, emotion: str) -> VoiceDi
     returned_words = len(clean_tagged.split())
     
     if original_words != returned_words:
-        print(f"⚠️ Voice Director altered word count! (Expected {original_words}, got {returned_words}). Triggering safety fallback to original script.")
+        print(f"WARNING: Voice Director altered word count! (Expected {original_words}, got {returned_words}). Triggering safety fallback to original script.")
         data['tagged_script'] = script
         data['direction_notes'] = "FALLBACK TRIGGERED: LLM altered script length. " + data.get('direction_notes', '')
         
