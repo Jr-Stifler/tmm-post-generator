@@ -786,16 +786,7 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     
     clips = []
     
-    # 1. Normalize timestamps so words_data starts exactly at 0.0
-    # This prevents the text from trailing the voice if ElevenLabs padding exists
-    t0 = 0.0
-    if words_data:
-        t0 = words_data[0]['start']
-        for w in words_data:
-            w['start'] -= t0
-            w['end'] -= t0
-            
-    # 1.5. Validate token mapping length
+    # 1. Validate token mapping length
     if words_data and len(words_data) != total_words:
         print(f"Warning: Token mismatch! ElevenLabs found {len(words_data)} words, but HTML has {total_words} words.")
 
@@ -806,7 +797,16 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
         os.close(fd_img)
         clips.append(ImageClip(t_img).with_duration(FRAME_DUR))
         
-    # 3. Word frames (pre-gap removed, starts directly after intro)
+    # 2.5. Pre-roll gap (if the audio has silence/breaths before the first word)
+    if words_data and words_data[0]['start'] > 0:
+        gap_dur = words_data[0]['start']
+        fd_img, t_img = tempfile.mkstemp(suffix=".png")
+        # Hold the last intro frame (where text is fully visible but not highlighted)
+        with open(t_img, "wb") as f: f.write(frames_bytes[INTRO_FRAMES - 1])
+        os.close(fd_img)
+        clips.append(ImageClip(t_img).with_duration(gap_dur))
+        
+    # 3. Word frames
     for i, w in enumerate(words_data):
         dur = w['end'] - w['start']
         if i < len(words_data) - 1:
@@ -825,14 +825,9 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     video = concatenate_videoclips(clips, method="compose")
     audio = AudioFileClip(temp_audio)
     
-    # Trim the ElevenLabs leading silence (t0) from the audio track
-    if t0 > 0 and audio.duration > t0:
-        audio = audio.subclipped(t0)
-    
-    # The video is INTRO_DURATION longer than the audio inherently.
-    # We add a TEXT_LEAD_TIME so the text highlights BEFORE the voice speaks (like movie subtitles).
-    TEXT_LEAD_TIME = 0.15  # 150ms visual lead
-    AUDIO_OFFSET = INTRO_DURATION + TEXT_LEAD_TIME
+    # The audio starts immediately after the intro (0.5s).
+    # Since we kept the pre-roll gap in the video timeline, it syncs 1:1 natively.
+    AUDIO_OFFSET = INTRO_DURATION
     
     total_needed = AUDIO_OFFSET + audio.duration
     if total_needed > video.duration:
