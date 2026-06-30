@@ -34,6 +34,14 @@ st.set_page_config(
 # ═══════════════════════════════════════════════════════════════
 
 # ── Agent 1: Brand Strategist ──
+
+class ReelScriptStructure(BaseModel):
+    hook_concept: str = Field(description="0-3s Hook concept (Pattern interrupt / bold claim). Just the concept, not the final text.")
+    context_concept: str = Field(description="3-5s Context concept. Why it matters.")
+    value_concept: str = Field(description="5-20s Value concept. The core lesson.")
+    payoff_concept: str = Field(description="The payoff/aha moment.")
+    cta_concept: str = Field(description="Call to action concept.")
+
 class StrategistBrief(BaseModel):
     epic_character: str = Field(description="The Mahabharata figure to anchor the post. Examples: Karna, Abhimanyu, Ghatotkach, Draupadi, Bhishma, Vidura, Krishna, Arjuna, Eklavya, Yudhishthira, Duryodhana, Shakuni")
     story_moment: str = Field(description="The specific story beat from the epic. Be precise — name the scene, the characters present, the stakes. Example: 'Karna gives away his kavach-kundal to Indra in disguise, knowing it will cost him his life in battle'")
@@ -42,6 +50,7 @@ class StrategistBrief(BaseModel):
     recommended_template: str = Field(description="Must be exactly one of: 'Quote Card', 'Carousel Slide', 'Character Spotlight', 'Reflection Post', 'List / Tips', 'Series Cover'")
     recommended_format: str = Field(description="Must be exactly one of: '1:1 Feed Post', '9:16 Reel'")
     strategic_rationale: str = Field(description="2-3 sentences explaining why this character, this moment, and this template are the highest-leverage combination for the user's input.")
+    reel_script_structure: Optional[ReelScriptStructure] = Field(None, description="If recommended_format is '9:16 Reel', provide the high-retention structural blueprint here. Do NOT write the final copy, just the structural concepts.")
 
 # ── Agent 2: Dharmic Copywriter (per-template outputs) ──
 class CarouselSlideItem(BaseModel):
@@ -147,6 +156,7 @@ RULES:
 5. Choose the format:
    - '1:1 Feed Post' for Quote Cards, Carousels, Lists
    - '9:16 Reel' for Character Spotlights and Reflection Posts that benefit from vertical drama
+6. If recommended_format is '9:16 Reel', you MUST provide a 'reel_script_structure' using the proven 5-part architecture (Hook -> Context -> Value -> Payoff -> CTA). Provide the concepts and flow, not the final exact copy.
 
 Think like a war council strategist. Every post is a weapon — choose the sharpest one."""
 
@@ -390,7 +400,8 @@ def run_copywriter(client, brief: dict, user_input: str) -> dict:
         f"- Emotional Core: {brief['emotional_core']}\n"
         f"- Template: {brief['recommended_template']}\n"
         f"- Format: {brief['recommended_format']}\n"
-        f"- Rationale: {brief['strategic_rationale']}\n\n"
+        f"- Rationale: {brief['strategic_rationale']}\n"
+        f"- Reel Script Structure: {__import__('json').dumps(brief.get('reel_script_structure', {})) if brief.get('reel_script_structure') else 'None'}\n\n"
         f"ORIGINAL USER INPUT: {user_input}\n\n"
         f"Write the post copy for the '{brief['recommended_template']}' template. "
         f"Fill ONLY the fields relevant to this template. Leave all other fields as null."
