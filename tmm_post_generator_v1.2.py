@@ -167,33 +167,34 @@ COPYWRITER_SYSTEM_PROMPT = """You are the Dharmic Copywriter for 'The Mahabharat
 
 YOUR VOICE RULES — THESE ARE NON-NEGOTIABLE:
 
-1. TITLES: Fragments over sentences. Em-dashes over commas. Period-separated staccato.
-   ✅ "Everything he had. Everything he was. Still not enough."
-   ✅ "Every institution failed him — his teachers, his family, his kingdom."
-   ✅ "Arjuna walked away from a million soldiers. And won."
-   ❌ "Karna teaches us valuable lessons about perseverance"
-   ❌ "The importance of staying strong in difficult times"
+1. TITLES & THE 3-SECOND RULE: Fragments over sentences. The title must be a violent pattern interrupt (1-5 words MAX). Never use a full sentence for a title. If it's more than 5 words, it is illegible in our ornate font.
+   ✅ "SILENCE."
+   ✅ "EVERYTHING HE WAS."
+   ✅ "Arjuna walked away."
+   ❌ "He was denied entry for his birth not his skill"
 
-2. BODY TEXT: Maximum 2 sentences. Prefer 1. If it can be said in 8 words, don't use 12.
+2. THE CURIOSITY GAP: Never give away the resolution in the first 3 seconds. The hook must raise an uncomfortable question or state a jarring contrast. The modern-life payoff must be the very last sentence. Withhold the payload.
+
+3. BODY TEXT: Maximum 2 sentences. Prefer 1. If it can be said in 8 words, don't use 12.
    ✅ "It was never about what he gave."
    ✅ "Duryodhana took the army. You would have too."
    ✅ "What breaks most people is the accumulation — rejection layered on rejection. Karna carried all of it and never let it become his identity."
    ❌ Long explanatory paragraphs about life lessons
 
-3. Never EXPLAIN the lesson — DELIVER it. The reader must feel punched, not lectured.
+4. Never EXPLAIN the lesson — DELIVER it. The reader must feel punched, not lectured.
 
-4. Second-person address ("You would have too") is a power move — use sparingly but deliberately.
+5. Second-person address ("You would have too") is a power move — use sparingly but deliberately.
 
-5. Character quotes must be CINEMATIC SCENE-DESCRIPTIONS, not motivational platitudes.
+6. Character quotes must be CINEMATIC SCENE-DESCRIPTIONS, not motivational platitudes.
    ✅ "Seven of the greatest warriors surrounded him. He was sixteen. He fought until there was nothing left to fight with."
    ✅ "Every warrior feared Karna's greatest weapon. Ghatotkacha walked straight into it — so nobody else would have to."
    ❌ "He showed great courage and never gave up"
 
-6. Sanskrit transliterations MUST use proper diacritical marks: ā, ī, ū, ṛ, ṣ, ṭ, ṇ, ñ, ś
+7. Sanskrit transliterations MUST use proper diacritical marks: ā, ī, ū, ṛ, ṣ, ṭ, ṇ, ñ, ś
 
-7. Carousel covers (slide 1) have a big title and EMPTY body text.
+8. Carousel covers (slide 1) have a big title and EMPTY body text.
 
-8. BANNED WORDS: delve, testament, tapestry, crucial, journey, landscape, navigate, unlock, empower, leverage, "In today's fast-paced world", "In the annals of", "stands as a"
+9. BANNED WORDS: delve, testament, tapestry, crucial, journey, landscape, navigate, unlock, empower, leverage, "In today's fast-paced world", "In the annals of", "stands as a"
 
 HERE ARE REAL EXAMPLES FROM THE BRAND — MATCH THIS EXACT QUALITY:
 
@@ -661,19 +662,20 @@ VOICE_DIRECTOR_SYSTEM_PROMPT = """You are the VOICE DIRECTOR for 'The Mahabharat
 You receive an already-approved narration script (a title + body, fixed and final) and the post's emotional_core. Your job: annotate that script with ElevenLabs v3 audio tags so the voiceover lands like a cinematic trailer and holds the viewer to the last word.
 
 ═══ THE IRON RULE — NON-NEGOTIABLE ═══
-You must NOT change, add, remove, reorder, or respell a SINGLE spoken word. The words you return, with all [bracketed tags] deleted, must be byte-for-byte identical to the words you were given. The on-screen text is locked to these exact words — if you alter them, the video breaks. You may ONLY insert [tags] between words or at the start of a line. Pauses are created with the [pause] tag, NEVER by adding punctuation or ellipses.
+You must NOT change, add, remove, reorder, or respell a SINGLE spoken word. The words you return, with all [bracketed tags] deleted, must be byte-for-byte identical to the words you were given. The on-screen text is locked to these exact words — if you alter them, the video breaks. You may ONLY insert [tags] between words or at the start of a line.
 
 ═══ RETENTION MODEL — perform to this arc ═══
-1. THE HOOK (first line): open with tension, not warmth. Tag for intensity, intrigue, or a hushed confession — something that makes a thumb stop. Never open flat.
-2. THE ESCALATION (middle): vary the delivery line-to-line. A pattern that never changes is a pattern people scroll past. Alternate quiet and forceful. Place a [pause] right BEFORE the most important word so the viewer leans in.
-3. THE PAYOFF (final line): slow down. Lower the energy or sharpen it to a point. The last line should feel like a verdict, delivered with weight. End on stillness, not a rush.
+1. MOMENTUM IS KING: Instagram retention drops to zero during dead air. You are explicitly FORBIDDEN from using the [pause] tag. The delivery must be rapid, continuous, and gripping.
+2. THE HOOK (first line): open with tension, not warmth. Tag for intensity, intrigue, or a hushed confession — something that makes a thumb stop. Never open flat.
+3. THE ESCALATION (middle): vary the delivery line-to-line. Alternate quiet and forceful.
+4. THE PAYOFF (final line): slow down. Lower the energy or sharpen it to a point. The last line should feel like a verdict, delivered with weight.
 
 ═══ V3 AUDIO TAG VOCABULARY (use only these) ═══
 Emotion:   [solemn] [grave] [sorrowful] [defiant] [furious] [reverent] [bitter] [resolute] [whispering] [intense] [contemplative]
 Delivery:  [slowly] [softly] [building] [emphatic] [measured]
-Pacing:    [pause]   (a deliberate beat of silence)
+DO NOT USE [pause].
 
-Use tags SPARINGLY — at most one tag per sentence, plus [pause] where the drama demands it. Over-tagging makes the voice unstable and fake. Silence and restraint are tools; a well-placed [pause] beats three adjectives.
+Use tags SPARINGLY — at most one tag per sentence. Over-tagging makes the voice unstable and fake.
 
 ═══ DRIVE FROM emotional_core ═══
 - rage / defiance  → [defiant], [furious], [bitter], [emphatic]; clipped, forceful.
@@ -806,7 +808,7 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     import numpy as np
     
     fps = 30
-    INTRO_DURATION = 0.5  # seconds
+    INTRO_DURATION = 0.1  # seconds
     
     # Save audio to temp
     fd_a, temp_audio = tempfile.mkstemp(suffix=".mp3")
@@ -978,7 +980,7 @@ def get_video_frames(html_content, words_data, w=1080, h=1920, audio_duration=0.
     
     frames = []
     fps = 30
-    INTRO_DURATION = 0.5
+    INTRO_DURATION = 0.1
     total_duration = INTRO_DURATION + audio_duration
     total_frames = int(total_duration * fps)
     
@@ -1197,8 +1199,24 @@ def html_brand_js():
                 opacity = 1;
                 scale = 1.1 - (0.1 * p); // smoothly zoom down to 1.0
             } else {
-                opacity = 1;
+                // Wipe effect: fade out 1.5s after word ends to preserve curiosity gap
+                var wipeTime = 1.5;
+                var fadeOutDuration = 0.5;
+                if (t > w.end + wipeTime) {
+                    var fadeOutStart = w.end + wipeTime;
+                    var p2 = Math.max(0, 1 - ((t - fadeOutStart) / fadeOutDuration));
+                    opacity = p2;
+                } else {
+                    opacity = 1;
+                }
                 scale = 1.0;
+            }
+            
+            // Immediate Hook Fix: First word is fully visible and highlighted instantly
+            if (i === 0 && t <= 0.1) {
+                opacity = 1;
+                scale = 1.1;
+                isHighlight = true;
             }
             
             e.style.opacity = opacity;
@@ -1786,7 +1804,7 @@ with tab_engine:
                                     st.write("🎭 Consulting Voice Director...")
                                     emotion = brief.get("emotional_core", "default") if 'brief' in locals() and brief else "default"
                                     gemini_key = os.environ.get("GEMINI_API_KEY", "")
-                                    vd_out = generate_voice_direction(gemini_key, text_to_read.replace('<br>','... '), emotion)
+                                    vd_out = generate_voice_direction(gemini_key, text_to_read.replace('<br>',' '), emotion)
                                     
                                     st.info(f"**Voice Direction:** {vd_out.direction_notes}")
                                     st.write(f"🎙️ Requesting Voiceover (v3): *{vd_out.tagged_script}*")
