@@ -827,7 +827,7 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
     
     # Trim the ElevenLabs leading silence (t0) from the audio track
     if t0 > 0 and audio.duration > t0:
-        audio = audio.subclip(t0)
+        audio = audio.subclipped(t0)
     
     # The video is INTRO_DURATION longer than the audio inherently.
     # We add a TEXT_LEAD_TIME so the text highlights BEFORE the voice speaks (like movie subtitles).
