@@ -762,8 +762,17 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
         video = concatenate_videoclips([video, last_clip], method="compose")
 
     # Create silent intro + actual audio
+    import numpy as np
     from moviepy import AudioClip, CompositeAudioClip
-    silence = AudioClip(lambda t: [0, 0], duration=INTRO_DURATION, fps=44100).with_fps(44100)
+    
+    def make_silence(t):
+        if isinstance(t, np.ndarray):
+            return np.zeros((len(t), 2))
+        return np.array([0.0, 0.0])
+        
+    silence = AudioClip(make_silence, duration=INTRO_DURATION, fps=44100)
+    
+    # We must ensure audio handles correctly
     offset_audio = CompositeAudioClip([silence, audio.with_start(INTRO_DURATION)])
     video = video.with_audio(offset_audio)
     video.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac", ffmpeg_params=["-crf", "18", "-pix_fmt", "yuv420p", "-preset", "slow"])
