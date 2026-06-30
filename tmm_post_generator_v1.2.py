@@ -1140,7 +1140,7 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 /* KINETIC TYPOGRAPHY ANIMATION (Phase 5 — cinematic motion) */
 .word {{ display: inline-block; opacity: 0; }}
 .word.revealed {{ opacity: 1; }}
-.word.highlight {{ opacity: 1; color: var(--gold3); text-shadow: 0 0 18px var(--gold), 0 0 40px rgba(201,146,42,0.3); }}
+.word.highlight {{ opacity: 1; color: var(--gold3); text-shadow: 0 0 4px var(--gold); }}
 
 /* Entrance classes for reel motion */
 .entrance {{ opacity: 0; transform: translateY(20px); }}
