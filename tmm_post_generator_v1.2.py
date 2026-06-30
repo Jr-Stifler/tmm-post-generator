@@ -1243,14 +1243,6 @@ def html_brand_js():
                 }
                 scale = 1.0;
             }
-            
-            // Immediate Hook Fix: First word is fully visible and highlighted instantly
-            if (i === 0 && t <= 0.1) {
-                opacity = 1;
-                scale = 1.1;
-                isHighlight = true;
-            }
-            
             e.style.opacity = opacity;
             e.style.transform = "scale(" + scale + ")";
             
@@ -1265,6 +1257,16 @@ def html_brand_js():
         if (pb && totalDuration > 0) {
             var pct = Math.min(100, Math.max(0, (t / totalDuration) * 100));
             pb.style.width = pct + '%';
+        }
+        
+        var cta = document.querySelector('.cta-text');
+        if (cta && totalDuration > 0) {
+            var ctaStart = totalDuration - 1.5;
+            if (t > ctaStart) {
+                cta.style.opacity = Math.min(1, (t - ctaStart) / 1.0);
+            } else {
+                cta.style.opacity = 0;
+            }
         }
 
         /* Ken Burns on background */
@@ -1467,7 +1469,7 @@ def generate_video_reel(tag, hook, setup, turn, payoff, cta, bg_b64, w=1080, h=1
         
     cta_html = ""
     if cta:
-        cta_html, idx = wrap_words(cta, idx)
+        cta_html = cta.replace('\\n', '<br>')
         
     # Inject progress bar div dynamically at the bottom
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
@@ -1476,7 +1478,7 @@ def generate_video_reel(tag, hook, setup, turn, payoff, cta, bg_b64, w=1080, h=1
   <div class="rtitle gold-text entrance" style="opacity:1; transform:none;"><span class="hook-text" style="color:var(--cream); text-shadow:0 0 12px var(--gold), 0 0 28px rgba(201,146,42,0.35);">{hook_html}</span></div>
   <div class="svg-divider entrance"><svg width="60" height="8" viewBox="0 0 60 8" fill="none"><path d="M0 4L30 0L60 4L30 8L0 4Z" fill="var(--gold)"/></svg></div>
   <div class="rbody entrance" style="margin-bottom: 24px;">{body_html}</div>
-  <div class="rbody entrance" style="font-size: 24px; opacity: 0.8;">{cta_html}</div>
+  <div class="cta-text" style="font-family:'EB Garamond'; font-size: 24px; opacity: 0; color: var(--text); text-align: center; margin-top: 40px; transition: opacity 1s ease-in-out;">{cta_html}</div>
   {html_brand_footer()}
   <div class="progress-bar-container"><div class="progress-bar-fill" style="width: 0%;"></div></div>
 </div></body></html>"""
