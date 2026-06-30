@@ -236,7 +236,7 @@ NOW WRITE. Match this standard or stay silent."""
 
 EDITOR_SYSTEM_PROMPT = """You are the Adversarial Editor for 'The Mahabharata Mindset'. Your job is to review draft copy and either approve it or rewrite it.
 
-You run FOUR merciless filters:
+You run FIVE merciless filters:
 
 1. THE ARJUNA TEST: If Lord Krishna said this to Arjuna on the battlefield of Kurukshetra, would Arjuna string his Gandiva and charge — or would he scroll past? If it sounds like a generic LinkedIn "hustle bro" post or a corporate motivational poster, REWRITE IT.
 
@@ -249,13 +249,15 @@ You run FOUR merciless filters:
    - Character quotes: 3 sentences maximum. Must be cinematic scene-setting, not generic praise.
    - Carousel cover (slide 1) body MUST be empty string.
 
+5. THE PROPER-NOUN GUARDIAN: Every character name MUST match the canonical Mahabharata roster exactly. The ONLY valid spellings are: Karna, Arjuna, Draupadi, Krishna, Bhishma, Duryodhana, Yudhishthira, Bhima, Nakula, Sahadeva, Abhimanyu, Ghatotkach, Drona, Vidura, Kunti, Gandhari, Dhritarashtra, Pandu, Shakuni, Eklavya, Parashurama, Ashwatthama, Shikhandi, Barbarik, Subhadra, Uttara, Virata, Satyaki, Kritavarma, Shalya, Jayadratha, Dushasana, Shakuntala, Amba, Hidimba. If ANY name is misspelled (e.g. "Drapaupad", "Karan", "Dropadi"), IMMEDIATELY correct it using the canonical spelling and set approved=false. This is NON-NEGOTIABLE — the voiceover engine will mispronounce garbled names.
+
 COMPARISON BENCHMARK — the copy must feel like it belongs alongside these:
 - "Everything he had. Everything he was. Still not enough."
 - "Duryodhana took the army. You would have too."
 - "Seven of the greatest warriors surrounded him. He was sixteen."
 - "Every institution failed him — his teachers, his family, his kingdom."
 
-If the draft passes all 4 filters, set approved=true and return it unchanged.
+If the draft passes all 5 filters, set approved=true and return it unchanged.
 If any filter fails, set approved=false, rewrite the offending fields, and explain what you changed in audit_log."""
 
 CAPTION_SYSTEM_PROMPT = """You are the Caption & Hashtag Writer for 'The Mahabharata Mindset'.
@@ -748,7 +750,7 @@ def compile_video_reel(audio_bytes, words_data, frames_bytes, output_filename="r
         video = concatenate_videoclips([video, last_clip], method="compose")
         
     video = video.with_audio(audio)
-    video.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac")
+    video.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac", ffmpeg_params=["-crf", "18", "-pix_fmt", "yuv420p", "-preset", "slow"])
     
     return output_filename
 
@@ -933,6 +935,9 @@ def get_brand_css(w, h, is_reel=False, emotion="default"):
     corner_size = "100px" if is_reel else "80px"
     corner_inset = "44px" if is_reel else "32px"
     reflect_title_size = "38px" if is_reel else "32px"
+    reflect_title_render = "52px" if is_reel else "var(--title-size)"
+    reflect_body_size = "34px" if is_reel else "28px"
+    reflect_bottom_pad = "280px" if is_reel else "70px"
 
     # Phase 2: Emotion Mapping Lookup Table
     emotion_lower = str(emotion).lower()
@@ -1022,13 +1027,13 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 .cchar-quote {{ font-size:34px !important;line-height:1.5;color:var(--cream);font-weight:600;border-left:4px solid var(--gold);padding-left:25px;max-width:95%;font-style:italic;text-shadow:0 4px 15px rgba(0,0,0,0.9);z-index:10;position:relative; }}
 
 /* Reflection */
-.card-reflection {{ background: var(--black); display: flex; flex-direction: column; justify-content: center; padding: var(--pad-reflect); text-align: left; }}
-.card-reflection .rtitle {{ font-size: var(--title-size); margin-bottom: 28px; }}
-.card-reflection .rbody {{ font-size: 28px; line-height: 1.6; color: var(--text); font-weight: 500; position: relative; z-index: 2; }}
+.card-reflection {{ background: var(--black); display: flex; flex-direction: column; justify-content: flex-end; padding: var(--pad-reflect); padding-bottom: {reflect_bottom_pad}; text-align: left; }}
+.card-reflection .rtitle {{ font-size: {reflect_title_render}; margin-bottom: 28px; line-height: 1.15; }}
+.card-reflection .rbody {{ font-size: {reflect_body_size}; line-height: 1.6; color: var(--text); font-weight: 500; position: relative; z-index: 2; }}
 
 /* KINETIC TYPOGRAPHY ANIMATION (Phase 4 basis) */
-.word {{ display: inline-block; transition: all 0.05s ease-in-out; }}
-.word.highlight {{ color: var(--gold3); text-shadow: 0 0 15px var(--gold); transform: scale(1.15); }}
+.word {{ display: inline-block; transition: color 0.15s ease, text-shadow 0.15s ease; }}
+.word.highlight {{ color: var(--gold3); text-shadow: 0 0 18px var(--gold), 0 0 40px rgba(201,146,42,0.3); }}
 """
 
 def html_brand_js():
