@@ -983,8 +983,8 @@ def get_video_frames(html_content, words_data, w=1080, h=1920, audio_duration=0.
         
         for f in range(total_frames):
             t = (f / fps) - INTRO_DURATION
-            # We call renderFrame with exact time t
-            page.evaluate(f"renderFrame({t}, '{words_data_json}')")
+            # We call renderFrame with exact time t and audio_duration
+            page.evaluate(f"renderFrame({t}, '{words_data_json}', {audio_duration})")
             frames.append(page.screenshot(type="jpeg", quality=90))
             
         browser.close()
@@ -1151,7 +1151,7 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 def html_brand_js():
     return """<script>
     /* Phase 7: Frame-by-Frame Continuous Rendering Engine */
-    function renderFrame(t, wordsDataStr) {
+    function renderFrame(t, wordsDataStr, totalDuration) {
         var words = document.querySelectorAll('.word');
         var wordsData = JSON.parse(wordsDataStr);
         
@@ -1197,37 +1197,45 @@ def html_brand_js():
 
         /* Ken Burns on background */
         var bg = document.querySelector('.battle-bg');
-        if (bg && totalFrames > 0) {
-            var p = Math.max(0, idx) / totalFrames;
-            var scale = 1.0 + (p * 0.15);
-            var tx = p * -20;
-            var ty = p * -10;
+        if (bg && totalDuration > 0) {
+            // Intro starts at t=-0.5, audio ends at t=totalDuration
+            var progress = Math.max(0, t + 0.5) / (totalDuration + 0.5);
+            var scale = 1.0 + (progress * 0.15);
+            var tx = progress * -20;
+            var ty = progress * -10;
             bg.style.transform = 'scale(' + scale + ') translate(' + tx + 'px, ' + ty + 'px)';
         }
 
         /* Vignette subtle radial shift for no-bg cards */
         var vig = document.querySelector('.vignette-overlay');
-        if (vig && totalFrames > 0) {
-            var p2 = Math.max(0, idx) / totalFrames;
+        if (vig && totalDuration > 0) {
+            var p2 = Math.max(0, t + 0.5) / (totalDuration + 0.5);
             vig.style.background = 'radial-gradient(circle at ' + (50 + p2 * 5) + '% ' + (50 - p2 * 3) + '%, transparent 30%, var(--black) 100%)';
         }
 
         /* Staggered entrance for UI elements */
         var entrances = [
-            {sel: '.brand', frame: 0},
-            {sel: '.cq-corner.tl', frame: 1},
-            {sel: '.cq-corner.tr', frame: 1},
-            {sel: '.cq-corner.bl', frame: 2},
-            {sel: '.cq-corner.br', frame: 2},
-            {sel: '.svg-divider', frame: 3},
-            {sel: '.brand-footer', frame: 5}
+            {sel: '.brand', time: -0.4},
+            {sel: '.cq-corner.tl', time: -0.3},
+            {sel: '.cq-corner.tr', time: -0.3},
+            {sel: '.cq-corner.bl', time: -0.2},
+            {sel: '.cq-corner.br', time: -0.2},
+            {sel: '.svg-divider', time: -0.1},
+            {sel: '.brand-footer', time: 0.0}
         ];
         entrances.forEach(function(e) {
             var el = document.querySelector(e.sel);
             if (el) {
-                if (idx >= e.frame) { el.classList.add('entered'); } else { el.classList.remove('entered'); }
+                if (t >= e.time) { el.classList.add('entered'); } else { el.classList.remove('entered'); }
             }
         });
+        
+        /* Progress Bar (if exists) */
+        var pb = document.querySelector('.progress-bar-fill');
+        if (pb && totalDuration > 0) {
+            var prog = Math.max(0, t) / totalDuration;
+            pb.style.width = (prog * 100) + '%';
+        }
     }
 
     /* Backward compat: old setHighlight still works for static preview */
