@@ -117,6 +117,12 @@ class CaptionOutput(BaseModel):
     hashtags: List[str] = Field(description="15-25 hashtags relevant to the post and brand.")
     alt_text: str = Field(description="Accessibility alt text describing the visual post.")
 
+class VoiceDirectionOutput(BaseModel):
+    tagged_script: str = Field(description="The exact approved words, unchanged, with v3 [tags] and [pause] inserted. Removing all [bracketed] tokens must reproduce the original words verbatim.")
+    base_stability: float = Field(description="ElevenLabs stability 0.0-1.0 for the whole clip. Lower = more emotional (0.25-0.35 for rage/grief, 0.5-0.6 for stillness).")
+    base_style: float = Field(description="ElevenLabs style exaggeration 0.0-1.0. Higher = more dramatic delivery.")
+    direction_notes: str = Field(description="One sentence on the intended performance arc, for the log.")
+
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -634,11 +640,61 @@ def publish_to_instagram_single(image_url: str, caption_text: str, ig_user_id: s
         return f"Publish Error: {p_req.text}"
 
 
+# ── Agent 5: Voice Director ──
+VOICE_DIRECTOR_SYSTEM_PROMPT = """You are the VOICE DIRECTOR for 'The Mahabharata Mindset'. You do not write copy. You direct PERFORMANCE.
+You receive an already-approved narration script (a title + body, fixed and final) and the post's emotional_core. Your job: annotate that script with ElevenLabs v3 audio tags so the voiceover lands like a cinematic trailer and holds the viewer to the last word.
+
+═══ THE IRON RULE — NON-NEGOTIABLE ═══
+You must NOT change, add, remove, reorder, or respell a SINGLE spoken word. The words you return, with all [bracketed tags] deleted, must be byte-for-byte identical to the words you were given. The on-screen text is locked to these exact words — if you alter them, the video breaks. You may ONLY insert [tags] between words or at the start of a line. Pauses are created with the [pause] tag, NEVER by adding punctuation or ellipses.
+
+═══ RETENTION MODEL — perform to this arc ═══
+1. THE HOOK (first line): open with tension, not warmth. Tag for intensity, intrigue, or a hushed confession — something that makes a thumb stop. Never open flat.
+2. THE ESCALATION (middle): vary the delivery line-to-line. A pattern that never changes is a pattern people scroll past. Alternate quiet and forceful. Place a [pause] right BEFORE the most important word so the viewer leans in.
+3. THE PAYOFF (final line): slow down. Lower the energy or sharpen it to a point. The last line should feel like a verdict, delivered with weight. End on stillness, not a rush.
+
+═══ V3 AUDIO TAG VOCABULARY (use only these) ═══
+Emotion:   [solemn] [grave] [sorrowful] [defiant] [furious] [reverent] [bitter] [resolute] [whispering] [intense] [contemplative]
+Delivery:  [slowly] [softly] [building] [emphatic] [measured]
+Pacing:    [pause]   (a deliberate beat of silence)
+
+Use tags SPARINGLY — at most one tag per sentence, plus [pause] where the drama demands it. Over-tagging makes the voice unstable and fake. Silence and restraint are tools; a well-placed [pause] beats three adjectives.
+
+═══ DRIVE FROM emotional_core ═══
+- rage / defiance  → [defiant], [furious], [bitter], [emphatic]; clipped, forceful.
+- sacrifice / grief → [solemn], [sorrowful], [reverent], [slowly]; heavy, deliberate.
+- betrayal         → [bitter], [grave], [whispering]; cold, controlled.
+- stillness / duty → [contemplative], [measured], [softly]; calm, certain.
+Never let the performance contradict the emotional_core.
+
+═══ EXAMPLE (annotate, do not rewrite) ═══
+INPUT  (emotional_core: betrayal):
+  "He was denied entry — for his birth, not his skill. The greatest archer of his generation was told the school wasn't for him."
+OUTPUT:
+  "[grave] He was denied entry — for his birth, [pause] not his skill. [bitter] The greatest archer of his generation [pause] was told the school wasn't for him."
+
+Direct the performance. Then stay silent."""
+
+def generate_voice_direction(api_key: str, script: str, emotion: str) -> VoiceDirectionOutput:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-pro",
+                                  system_instruction=VOICE_DIRECTOR_SYSTEM_PROMPT,
+                                  generation_config=genai.GenerationConfig(
+                                      response_mime_type="application/json",
+                                      response_schema=VoiceDirectionOutput,
+                                      temperature=0.2
+                                  ))
+    prompt = f"emotional_core: {emotion}\n\nSCRIPT:\n{script}"
+    response = model.generate_content(prompt)
+    if not response.text:
+        raise ValueError("Empty response from Voice Director agent.")
+    data = json.loads(response.text)
+    return VoiceDirectionOutput(**data)
+
 # ═══════════════════════════════════════════════════════════════
 # SECTION 2D: AI VIDEO ENGINE (ELEVENLABS + MOVIEPY)
 # ═══════════════════════════════════════════════════════════════
 
-def generate_elevenlabs_voiceover(text: str, api_key: str, voice_id: str = "RXZGC6H41rpnXBWuHTQD"):
+def generate_elevenlabs_voiceover(text: str, api_key: str, voice_id: str = "RXZGC6H41rpnXBWuHTQD", stability: float = 0.5, style: float = 0.0):
     """
     Calls ElevenLabs /with-timestamps API to get the audio and word-level timings.
     Returns (audio_bytes, alignment_data)
@@ -650,10 +706,11 @@ def generate_elevenlabs_voiceover(text: str, api_key: str, voice_id: str = "RXZG
     }
     payload = {
         "text": text,
-        "model_id": "eleven_multilingual_v2",
+        "model_id": "eleven_v3",
         "voice_settings": {
-            "stability": 0.5,
-            "similarity_boost": 0.75
+            "stability": stability,
+            "similarity_boost": 0.75,
+            "style": style
         }
     }
     r = requests.post(url, json=payload, headers=headers)
@@ -676,8 +733,19 @@ def group_characters_to_words(alignment):
     current_word = ''
     start_t = None
     end_t = None
+    in_tag = False
     
     for i, char in enumerate(alignment['characters']):
+        if char == '[':
+            in_tag = True
+            continue
+        if char == ']':
+            in_tag = False
+            continue
+            
+        if in_tag:
+            continue
+            
         if char.strip() == '':
             if current_word:
                 words.append({'word': current_word, 'start': start_t, 'end': end_t})
@@ -1675,9 +1743,23 @@ with tab_engine:
                                         else:
                                             text_to_read = "The Mahabharata Mindset"
                                         
-                                    st.write(f"🎙️ Requesting Voiceover: *{text_to_read}*")
+                                    st.write("🎭 Consulting Voice Director...")
+                                    emotion = brief.get("emotional_core", "default") if 'brief' in locals() and brief else "default"
+                                    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+                                    vd_out = generate_voice_direction(gemini_key, text_to_read.replace('<br>','... '), emotion)
+                                    
+                                    st.info(f"**Voice Direction:** {vd_out.direction_notes}")
+                                    st.write(f"🎙️ Requesting Voiceover (v3): *{vd_out.tagged_script}*")
+                                    
+                                    # We send the TAGGED script to ElevenLabs v3
                                     voice_id = st.session_state.get("sidebar_elevenlabs_voice_id", "RXZGC6H41rpnXBWuHTQD")
-                                    audio_bytes, alignment = generate_elevenlabs_voiceover(text_to_read.replace('<br>','... '), elevenlabs_key, voice_id)
+                                    audio_bytes, alignment = generate_elevenlabs_voiceover(
+                                        vd_out.tagged_script, 
+                                        elevenlabs_key, 
+                                        voice_id,
+                                        stability=vd_out.base_stability,
+                                        style=vd_out.base_style
+                                    )
                                     words_data = group_characters_to_words(alignment)
                                     
                                     st.write(f"🖼️ Rendering {len(words_data)} kinetic typography frames...")
