@@ -1579,6 +1579,7 @@ with tab_engine:
                         st.write(f"✅ Editor verdict: **{approval}**")
                         
                         st.session_state["engine_caption"] = caption_data
+                        st.session_state["engine_edited_caption"] = f"{caption_data.get('caption', '')}\n\n{' '.join(caption_data.get('hashtags', []))}"
                         st.write(f"✅ Caption & Hashtags generated")
 
                         # Store carousel slides for navigation
@@ -1609,6 +1610,7 @@ with tab_engine:
                     st.session_state["engine_draft"] = draft
                     st.session_state["engine_final"] = final
                     st.session_state["engine_caption"] = caption_data
+                    st.session_state["engine_edited_caption"] = f"{caption_data.get('caption', '')}\n\n{' '.join(caption_data.get('hashtags', []))}"
                     
                     if final.get("template_type") == "Carousel Slide" and final.get("carousel_slides"):
                         st.session_state["engine_carousel_slides"] = final["carousel_slides"]
@@ -1705,9 +1707,8 @@ with tab_engine:
                 # Combine caption and hashtags for the text area
                 raw_caption = caption_data.get("caption", "")
                 hashtags = " ".join(caption_data.get("hashtags", []))
-                full_caption = f"{raw_caption}\n\n{hashtags}"
                 
-                edited_caption = st.text_area("Edit Caption before publishing", value=full_caption, height=200, key="engine_edited_caption")
+                edited_caption = st.text_area("Edit Caption before publishing", height=200, key="engine_edited_caption")
                 
                 ig_user_id = st.session_state.get("sidebar_ig_user_id")
                 ig_token = st.session_state.get("sidebar_ig_token")
