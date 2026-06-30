@@ -211,11 +211,11 @@ YOUR VOICE RULES — THESE ARE NON-NEGOTIABLE:
 
 9. VIDEO REEL ARCHITECTURE (If format is Video Reel): You MUST output 5 precise fields:
    - reel_hook: <=6 words. States a contradiction or pattern interrupt. NEVER resolves the story.
-   - reel_setup: The stakes/situation.
+   - reel_setup: The stakes/situation. Keep it brutally short.
    - reel_turn: The unexpected mechanism/twist.
    - reel_payoff: The modern-life translation. This MUST resolve the hook's contradiction. The hook and payoff MUST share a keyword or thematic parallel.
    - reel_cta: A question to the viewer + the handle (@TheMahabharataMindset).
-   Total word count across all 5 beats must NOT exceed 45 words.
+   FATAL RULE: Total word count across ALL 5 beats must be EXACTLY 30-35 words. Never exceed 35 words. If you use 40 words, the viewer swipes away. Shorter is stronger.
 
 9. BANNED WORDS: delve, testament, tapestry, crucial, journey, landscape, navigate, unlock, empower, leverage, "In today's fast-paced world", "In the annals of", "stands as a"
 
@@ -753,6 +753,9 @@ def generate_voice_direction(api_key: str, script: str, emotion: str) -> VoiceDi
     # DETERMINISTIC PACING CAP: Cap [pause] tags to maximum 1
     parts = data['tagged_script'].split('[pause]')
     data['tagged_script'] = parts[0] + ('[pause]' + ''.join(parts[1:]) if len(parts) > 1 else '')
+    
+    # SILENT PAUSE STRIPPER: v3 adds massive gaps for dashes and ellipses. Strip them to force momentum.
+    data['tagged_script'] = data['tagged_script'].replace('...', '.').replace('—', ',').replace('--', ',')
         
     return VoiceDirectionOutput(**data)
 # ═══════════════════════════════════════════════════════════════
@@ -1458,14 +1461,14 @@ def generate_video_reel(tag, hook, setup, turn, payoff, cta, bg_b64, w=1080, h=1
     body_html = ""
     idx = 0
     if setup:
-        setup_html, idx = wrap_words(setup + " ", idx)
-        body_html += setup_html
+        setup_html, idx = wrap_words(setup, idx)
+        body_html += setup_html + " "
     if turn:
-        turn_html, idx = wrap_words(turn + " ", idx)
-        body_html += turn_html
+        turn_html, idx = wrap_words(turn, idx)
+        body_html += turn_html + " "
     if payoff:
-        payoff_html, idx = wrap_words(payoff + " ", idx)
-        body_html += payoff_html
+        payoff_html, idx = wrap_words(payoff, idx)
+        body_html += payoff_html + " "
         
     cta_html = ""
     if cta:
@@ -1475,7 +1478,7 @@ def generate_video_reel(tag, hook, setup, turn, payoff, cta, bg_b64, w=1080, h=1
     return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><style>{css}</style>{html_brand_js()}</head><body>{html_svg_defs()}
 <div class="card card-reflection">{html_bg(bg_b64)}
   <div class="brand entrance" style="margin-bottom:28px;">{tag}</div>
-  <div class="rtitle gold-text entrance" style="opacity:1; transform:none;"><span class="hook-text" style="color:var(--cream); text-shadow:0 0 12px var(--gold), 0 0 28px rgba(201,146,42,0.35);">{hook_html}</span></div>
+  <div class="rtitle gold-text entrance" style="opacity:1; transform:none;"><span class="hook-text" style="color:var(--cream); -webkit-text-fill-color:var(--cream); text-shadow:0 0 12px var(--gold), 0 0 28px rgba(201,146,42,0.35);">{hook_html}</span></div>
   <div class="svg-divider entrance"><svg width="60" height="8" viewBox="0 0 60 8" fill="none"><path d="M0 4L30 0L60 4L30 8L0 4Z" fill="var(--gold)"/></svg></div>
   <div class="rbody entrance" style="margin-bottom: 24px;">{body_html}</div>
   <div class="cta-text" style="font-family:'EB Garamond'; font-size: 24px; opacity: 0; color: var(--text); text-align: center; margin-top: 40px; transition: opacity 1s ease-in-out;">{cta_html}</div>
