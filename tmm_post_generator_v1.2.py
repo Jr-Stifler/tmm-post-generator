@@ -1139,8 +1139,9 @@ body {{ background: var(--black); font-family: 'EB Garamond', serif; overflow: h
 
 /* KINETIC TYPOGRAPHY ANIMATION (Phase 5 — cinematic motion) */
 .word {{ display: inline-block; opacity: 0; }}
+.gold-text .word {{ background: inherit; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
 .word.revealed {{ opacity: 1; }}
-.word.highlight {{ opacity: 1; color: var(--gold3); text-shadow: 0 0 4px var(--gold); }}
+.word.highlight {{ opacity: 1; color: var(--gold3); -webkit-text-fill-color: var(--gold3); text-shadow: 0 0 4px var(--gold); }}
 
 /* Entrance classes for reel motion */
 .entrance {{ opacity: 0; transform: translateY(20px); }}
