@@ -1432,10 +1432,10 @@ with tab_engine:
                 html = generate_carousel_slide(
                     final.get("carousel_tag") or "", sl.get("slide_num", idx + 1),
                     len(slides), sl.get("title", ""), sl.get("body", ""),
-                    bg_b64, render_w, render_h
+                    bg_b64, render_w, render_h, emotion=brief.get("emotional_core", "default")
                 )
             else:
-                html = render_from_final(final, bg_b64, render_w, render_h)
+                html = render_from_final(final, bg_b64, render_w, render_h, emotion=brief.get("emotional_core", "default"))
 
             if html:
                 st.components.v1.html(html, height=render_preview_h, scrolling=False)
