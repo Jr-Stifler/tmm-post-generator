@@ -636,7 +636,7 @@ def publish_to_instagram_single(image_url: str, caption_text: str, ig_user_id: s
 # SECTION 2D: AI VIDEO ENGINE (ELEVENLABS + MOVIEPY)
 # ═══════════════════════════════════════════════════════════════
 
-def generate_elevenlabs_voiceover(text: str, api_key: str, voice_id: str = "JBFqnCBsd6RMkjVDRZzb"):
+def generate_elevenlabs_voiceover(text: str, api_key: str, voice_id: str = "RXZGC6H41rpnXBWuHTQD"):
     """
     Calls ElevenLabs /with-timestamps API to get the audio and word-level timings.
     Returns (audio_bytes, alignment_data)
@@ -1074,7 +1074,8 @@ def html_svg_defs():
             <filter id="grain">
                 <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" result="noise"/>
                 <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.15 0" in="noise" result="coloredNoise"/>
-                <feBlend in="SourceGraphic" in2="coloredNoise" mode="multiply"/>
+                <feComposite in="coloredNoise" in2="SourceGraphic" operator="in" result="compNoise"/>
+                <feBlend in="SourceGraphic" in2="compNoise" mode="multiply"/>
             </filter>
         </defs>
     </svg>
@@ -1528,7 +1529,7 @@ with tab_engine:
                                         text_to_read = "The Mahabharata Mindset"
                                         
                                     st.write(f"🎙️ Requesting Voiceover: *{text_to_read}*")
-                                    voice_id = st.session_state.get("sidebar_elevenlabs_voice_id", "9BWtsMINqrJLrRacOk9x")
+                                    voice_id = st.session_state.get("sidebar_elevenlabs_voice_id", "RXZGC6H41rpnXBWuHTQD")
                                     audio_bytes, alignment = generate_elevenlabs_voiceover(text_to_read.replace('<br>','... '), elevenlabs_key, voice_id)
                                     words_data = group_characters_to_words(alignment)
                                     
